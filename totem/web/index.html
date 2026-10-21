@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ITOMItel Emulatore</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --page: #0c0e0d;
+    --ink: #d9ddd9;
+    --muted: #8a938c;
+    --line: #262b28;
+    --plastic: #d8d3c4;
+    --plastic-dark: #b9b3a1;
+    --key: #3a3d3b;
+    --key-text: #e8ebe8;
+    --key-go: #0f8a5f;
+    /* phosphor: text, glow, screen background */
+    --fg: #5dff86;
+    --glow: rgba(93, 255, 134, .55);
+    --screen: #021308;
+  }
+  [data-phosphor="amber"] { --fg: #ffb73d; --glow: rgba(255, 183, 61, .5); --screen: #140a01; }
+  [data-phosphor="white"] { --fg: #dfeaff; --glow: rgba(190, 215, 255, .45); --screen: #0b0f14; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 20px 16px 40px; gap: 18px;
+  }
+  header { width: 100%; max-width: 1040px; display: flex; flex-wrap: wrap; gap: 12px 24px;
+           align-items: baseline; justify-content: space-between; }
+  h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: .02em; }
+  h1 span { color: var(--muted); font-weight: 400; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; color: var(--muted); }
+  .controls label { display: flex; align-items: center; gap: 6px; }
+  select {
+    background: #181c1a; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 8px; font: inherit;
+  }
+
+  /* the monitor: cream plastic around a dark glass */
+  .monitor {
+    width: 100%; max-width: 1040px; padding: 28px 28px 22px;
+    background: linear-gradient(160deg, var(--plastic), var(--plastic-dark));
+    border-radius: 22px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.55), inset 0 2px 0 rgba(255,255,255,.5);
+  }
+  .glass {
+    position: relative; background: var(--screen); border-radius: 26px / 20px;
+    padding: 22px 26px; overflow: hidden; margin: 0 auto; max-width: 100%;
+    box-shadow: inset 0 0 90px rgba(0,0,0,.85), inset 0 0 18px rgba(0,0,0,.9),
+                0 0 0 6px #1b1d1c, 0 2px 0 6px #090a09;
+  }
+  .glass::before {            /* vignette + faint glass reflection */
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+    background:
+      radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0,0,0,.55) 100%),
+      linear-gradient(165deg, rgba(255,255,255,.05), transparent 30%);
+  }
+  .glass::after {             /* scanlines */
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.28) 0 1px, transparent 1px 3px);
+  }
+  #term {
+    position: relative; z-index: 1; margin: 0; white-space: pre; color: var(--fg);
+    font-family: "VT323", ui-monospace, Menlo, Consolas, monospace;
+    text-shadow: 0 0 1px var(--fg), 0 0 7px var(--glow), 0 0 18px var(--glow);
+    animation: flicker 5s infinite steps(1);
+  }
+  @keyframes flicker { 0%, 100% { opacity: 1 } 47% { opacity: .96 } 48% { opacity: 1 } 83% { opacity: .975 } 84% { opacity: 1 } }
+  .cursor { display: inline-block; width: .55em; background: var(--fg); box-shadow: 0 0 8px var(--glow);
+            animation: blink 1s infinite steps(1); }
+  @keyframes blink { 50% { opacity: 0 } }
+
+  /* keys under the glass, like the real keyboard */
+  .keys { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; }
+  .keys button {
+    background: var(--key); color: var(--key-text); border: 0; border-radius: 6px;
+    padding: 9px 14px; font: 600 13px/1 system-ui, sans-serif; cursor: pointer; min-width: 84px;
+    box-shadow: 0 3px 0 #1c1e1d, 0 4px 6px rgba(0,0,0,.35);
+  }
+  .keys button:active { transform: translateY(2px); box-shadow: 0 1px 0 #1c1e1d; }
+  .keys button.go { background: var(--key-go); }
+  .keys small { display: block; font-weight: 400; opacity: .6; margin-top: 4px; font-size: 11px; }
+
+  .legend { width: 100%; max-width: 1040px; color: var(--muted); font-size: 13px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 4px 24px; }
+  .legend b { color: var(--ink); font-weight: 600; }
+  #status { width: 100%; max-width: 1040px; color: var(--muted); font-size: 13px; min-height: 1.4em; }
+
+  @media (max-width: 640px) {
+    .monitor { padding: 14px 12px; border-radius: 16px; }
+    .glass { padding: 12px 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) { #term, .cursor { animation: none; } }
+</style>
+</head>
+<body data-phosphor="green">
+<header>
+  <h1>ITOMItel <span>emulatore Videotel</span></h1>
+  <div class="controls">
+    <label>Fosfori
+      <select id="phosphor">
+        <option value="green">Verdi</option>
+        <option value="amber">Ambra</option>
+        <option value="white">Bianchi (HCS 80)</option>
+      </select>
+    </label>
+    <label>Colonne
+      <select id="cols"><option value="80">80</option><option value="40">40</option></select>
+    </label>
+    <label>Velocità linea
+      <select id="speed">
+        <option value="0">Istantanea</option>
+        <option value="9600">9600 baud</option>
+        <option value="1200">1200 baud</option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<main class="monitor" id="monitor">
+  <div class="glass" id="glass"><pre id="term" aria-live="polite"></pre></div>
+  <div class="keys" id="keys">
+    <button data-key="INDICE">Indice<small>Home · F2</small></button>
+    <button data-key="GUIDA">Guida<small>F1</small></button>
+    <button data-key="ANNUL">Annul.<small>Esc</small></button>
+    <button data-key="CORREZIONE">Correzione<small>Backspace</small></button>
+    <button data-key="RIPETIZ">Ripetiz.<small>F5</small></button>
+    <button data-key="PRECEDENTE">Precedente<small>← · PgSu</small></button>
+    <button data-key="SEGUENTE">Seguente<small>→ · PgGiù</small></button>
+    <button data-key="INVIO" class="go">Invio<small>Enter</small></button>
+  </div>
+</main>
+
+<p id="status"></p>
+<div class="legend">
+  <span><b>Numeri</b> scelgono la voce</span>
+  <span><b>Lettere</b> per la ricerca, poi Invio</span>
+  <span><b>1200 baud</b> mostra quanto è lenta la linea vera</span>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const term = $("term"), glass = $("glass"), statusEl = $("status");
+  const sid = (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2);
+  let width = 80, rows = [], timer = null, polling = false;
+
+  const store = {
+    get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  };
+
+  /* ---- sizing: fit the grid in the glass, whatever font is in use ---- */
+  function fit() {
+    const family = getComputedStyle(term).fontFamily;
+    const ctx = document.createElement("canvas").getContext("2d");
+    ctx.font = `100px ${family}`;
+    const ratio = ctx.measureText("M").width / 100;           // glyph width per px of font size
+    const box = $("monitor"), bs = getComputedStyle(box), gs = getComputedStyle(glass);
+    const padX = parseFloat(gs.paddingLeft) + parseFloat(gs.paddingRight);
+    const availW = box.clientWidth - parseFloat(bs.paddingLeft) - parseFloat(bs.paddingRight) - padX;
+    // leave room for the header, the keys and the status line below the glass
+    const availH = Math.max(window.innerHeight - 300, 260);
+    const byWidth = availW / (width * ratio);
+    const byHeight = availH / (24 * 1.02);
+    const size = Math.floor(Math.max(10, Math.min(byWidth, byHeight)) * 10) / 10;
+    term.style.fontSize = size + "px";
+    term.style.lineHeight = (size * 1.02) + "px";
+    term.style.minHeight = (size * 1.02 * 24) + "px";
+    glass.style.width = Math.ceil(width * ratio * size + padX + 2) + "px";
+  }
+
+  /* ---- drawing, optionally at line speed ---- */
+  const rtrim = (s) => s.replace(/\s+$/, "");
+
+  function frameText(n) {                       // first n "bytes" of the screen, CR/LF included
+    const out = [];
+    let left = n;
+    for (const row of rows) {
+      const r = rtrim(row);
+      if (left >= r.length + 2) { out.push(r); left -= r.length + 2; }
+      else { out.push(r.slice(0, Math.max(0, left))); left = -1; break; }
+    }
+    return { text: out.join("\n"), done: left >= 0 };
+  }
+
+  function draw(newRows, instant) {
+    clearInterval(timer);
+    rows = newRows;
+    const baud = Number($("speed").value);
+    if (instant || !baud) { term.textContent = rows.map(rtrim).join("\n"); return; }
+    const perSecond = baud / 10;                // 7E1: ten bits per byte
+    const started = performance.now();
+    const tick = () => {
+      const f = frameText(Math.floor((performance.now() - started) / 1000 * perSecond));
+      term.textContent = f.text;
+      if (f.done) { clearInterval(timer); return; }
+      const c = document.createElement("span");
+      c.className = "cursor"; c.textContent = " ";
+      term.appendChild(c);
+    };
+    tick();
+    timer = setInterval(tick, 40);
+  }
+
+  /* ---- talking to the local server ---- */
+  async function call(path, body) {
+    const res = await fetch(path, body ? {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    } : undefined);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  }
+
+  function handle(r, instant) {
+    draw(r.rows, instant);
+    statusEl.textContent = r.busy ? "Attendere: il terminale sta caricando…" : "";
+    if (r.busy && !polling) poll();
+  }
+
+  async function poll() {
+    polling = true;
+    try {
+      for (;;) {
+        await new Promise((ok) => setTimeout(ok, 250));
+        const r = await call(`/api/screen?sid=${sid}&width=${width}`);
+        draw(r.rows);
+        if (!r.busy) { statusEl.textContent = ""; break; }
+      }
+    } catch (e) { statusEl.textContent = "Connessione al server persa."; }
+    polling = false;
+  }
+
+  async function press(key) {
+    try { handle(await call("/api/key", { sid, width, key })); }
+    catch (e) { statusEl.textContent = "Il server non risponde. È ancora acceso?"; }
+  }
+
+  async function load() {
+    try { handle(await call(`/api/screen?sid=${sid}&width=${width}`)); }
+    catch (e) { statusEl.textContent = "Il server non risponde. È ancora acceso?"; }
+  }
+
+  /* ---- input ---- */
+  const KEYMAP = {
+    Enter: "INVIO", Backspace: "CORREZIONE", Escape: "ANNUL", Home: "INDICE",
+    ArrowRight: "SEGUENTE", PageDown: "SEGUENTE", ArrowLeft: "PRECEDENTE", PageUp: "PRECEDENTE",
+    F1: "GUIDA", F2: "INDICE", F5: "RIPETIZ",
+  };
+  window.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;      // leave browser shortcuts alone
+    // A focused menu keeps its own navigation keys; everything else goes to the terminal.
+    if (e.target.tagName === "SELECT" && ["ArrowUp", "ArrowDown", "Enter", " ", "Tab"].includes(e.key)) return;
+    const named = KEYMAP[e.key];
+    if (named) { e.preventDefault(); press(named); }
+    else if (e.key.length === 1) { e.preventDefault(); press(e.key); }
+  });
+  $("keys").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-key]");
+    if (b) press(b.dataset.key);
+  });
+
+  /* ---- settings ---- */
+  $("phosphor").value = store.get("itomitel.phosphor", "green");
+  $("speed").value = store.get("itomitel.speed", "0");
+  $("cols").value = store.get("itomitel.cols", "80");
+  width = Number($("cols").value);
+  const applyPhosphor = () => { document.body.dataset.phosphor = $("phosphor").value; };
+  applyPhosphor();
+
+  $("phosphor").addEventListener("change", () => { applyPhosphor(); store.set("itomitel.phosphor", $("phosphor").value); $("phosphor").blur(); });
+  $("speed").addEventListener("change", () => { store.set("itomitel.speed", $("speed").value); $("speed").blur(); draw(rows); });
+  $("cols").addEventListener("change", () => {
+    width = Number($("cols").value); store.set("itomitel.cols", String(width));
+    $("cols").blur(); fit(); load();
+  });
+
+  window.addEventListener("resize", fit);
+  fit();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fit(); });
+  load();
+})();
+</script>
+</body>
+</html>
