@@ -45,7 +45,8 @@ def serial_main(cmd: str) -> None:
     if cmd == "serial":
         ap.add_argument("--store", default="https://itomi.myshopify.com")
         ap.add_argument("--cache", default=str(Path(__file__).parent.parent / "cache"))
-        ap.add_argument("--profile", default="plain", choices=sorted(PROFILES))
+        ap.add_argument("--profile", default="ansi", choices=sorted(PROFILES),
+                        help="terminal control codes (ansi works on the HCS 80/08)")
         ap.add_argument("--width", type=int, default=80, choices=(40, 80),
                         help="columns of the terminal's Ascii mode")
         ap.add_argument("--idle", type=int, default=120,

@@ -36,28 +36,36 @@ menu di accensione).
 python3 -m totem monitor --port /dev/cu.usbserial-XXXX   # mostra i byte che invia il Minitel
 python3 -m totem probe   --port ...                       # prova i profili di controllo schermo
 python3 -m totem learn   --port ...                       # impara i tasti → keymap.json
-python3 -m totem serial  --port ... --profile ff          # avvia il totem
+python3 -m totem serial  --port /dev/serial0              # avvia il totem (profilo ansi)
 ```
 
 A 1200 baud una schermata piena impiega circa 8-11 secondi: per questo la schermata
 di caricamento è volutamente minima e `--profile ansi` / `vt52` (se il terminale li
 capisce) ridisegnano solo le righe cambiate.
 
-## Cablaggio (misure fatte sulla presa DIN a 5 poli)
+## Cablaggio (verificato sul campo, 2026-10-22)
 
-Presa femmina a 180° vista dal davanti, chiave in alto:
+Presa DIN a 5 poli femmina a 180° vista dal davanti, chiave in alto. Fili del cavo
+MIDI tagliato (stessa posizione dei pin misurati):
 
-| Posizione | Tensione |
-|---|---|
-| in basso al centro | massa (collegata alla schermatura) |
-| alto destra, basso destra | 4 V (candidati per l'uscita dati) |
-| alto sinistra | 2,9 V (candidato per l'ingresso dati) |
-| basso sinistra | **13,4 V, alimentazione ausiliaria: non collegarla mai** |
+| Filo | Tensione a riposo | Ruolo |
+|---|---|---|
+| esterno | 0 V | massa |
+| **rosso** | 4 V (sorgente debole) | **ingresso dati del terminale**: il Pi trasmette qui (testato) |
+| bianco | 4 V (sorgente debole) | probabile uscita dati (tasti): ancora da confermare |
+| nero | 0,1 V | da capire |
+| giallo | **13,4 V** | alimentazione ausiliaria: **non collegarla mai** |
 
-Adattatore USB-TTL (Waveshare FT232RNL) con selettore su **5 V**: massa → massa,
-filo dati del Minitel → RXD dell'adattatore. Per provare il verso opposto (TXD verso
-il Minitel) usare un resistore da 1 kΩ in serie. Non collegare il VCC dell'adattatore.
-Quale filo sia TX e quale RX è ancora da confermare con `monitor`.
+Le linee sono TTL con resistenza interna di 6-10 kΩ circa, quindi un partitore da
+3 kΩ le fa crollare. Il Pi 3 usa **/dev/serial0** (UART PL011, Bluetooth disattivato
+con `dtoverlay=disable-bt`) a 3,3 V:
+
+- Pi → Minitel: pin 8 (TXD) → resistore 1 kΩ → filo rosso. Funziona a 1200 baud 7E1.
+- Minitel → Pi: filo dati → resistore 47 kΩ → pin 10 (RXD), con 100 kΩ dal pin 10 a massa
+  (circa 2,6 V al Pi). Pin 6 = massa comune.
+
+Terminale in modalità **Ascii 80 col**: con `probe` il profilo **ansi** (ESC[2J, ESC[r;cH,
+ESC[K) pulisce e posiziona il testo; la prima schermata completa compare in 4-5 secondi.
 
 ## Struttura
 
@@ -76,7 +84,8 @@ in `totem/app.py`.
 
 ## Ancora da fare
 
-- Test sul Minitel vero: velocità accettata, profilo di controllo, tasti, caratteri accentati.
+- Tasti: trovare quale filo trasmette (bianco?), provare il tasto Linea, poi `learn`.
+- Caratteri accentati sul terminale vero (ora si scrivono come `e'`, `EUR`).
 - Se il terminale accetta velocità più alte, passarci (da 1200 a 9600 baud la schermata
   scende da ~10 s a ~1 s).
 - Avvio automatico sul Raspberry Pi e ritorno al menu dopo inattività (già previsto: `--idle`).
