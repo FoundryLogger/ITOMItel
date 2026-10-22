@@ -69,6 +69,24 @@ class EncodeTests(unittest.TestCase):
         self.assertLess(len(port.out) - first, 20)
 
 
+class FailingPort:
+    """A port whose write times out, like the HCS 80 stuck at boot."""
+    def write(self, b):
+        raise TimeoutError("Write timeout")
+
+
+class RobustnessTests(unittest.TestCase):
+    def test_try_draw_survives_a_failing_port_and_forces_a_full_redraw_next(self):
+        t = SerialTerminal(FailingPort(), "ansi")
+        t.prev = screen("vecchio", w=80)
+        self.assertEqual(t.try_draw(screen("nuovo", w=80)), 0.0)   # no exception
+        self.assertIsNone(t.prev)
+
+    def test_draw_itself_still_raises_so_tools_can_report_the_error(self):
+        with self.assertRaises(TimeoutError):
+            SerialTerminal(FailingPort(), "ansi").draw(screen("x"))
+
+
 class DecoderTests(unittest.TestCase):
     def test_printable_chars_and_defaults(self):
         d = KeyDecoder()

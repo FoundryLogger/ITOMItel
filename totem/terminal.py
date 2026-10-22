@@ -12,6 +12,7 @@ cursor addressing, and trims trailing spaces.
 from __future__ import annotations
 
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -159,6 +160,20 @@ class SerialTerminal:
         self.prev = list(rows)
         return estimate_seconds(data, self.baud)
 
+    def try_draw(self, rows: list[str], full: bool = False) -> float:
+        """draw() that never raises: a stuck or failing port must not stop the totem.
+
+        After a failure the terminal's screen is in an unknown state, so the
+        next draw is a full redraw.
+        """
+        try:
+            return self.draw(rows, full)
+        except Exception as e:  # serial timeouts, device errors...
+            print(f"[errore di scrittura sulla seriale: {type(e).__name__}: {e}]",
+                  file=sys.stderr, flush=True)
+            self.prev = None
+            return 0.0
+
     def read(self) -> bytes:
         return self.port.read(64)
 
@@ -168,7 +183,7 @@ def open_port(device: str, baud: int = 1200, bits: int = 7, parity: str = "E",
     import serial  # imported late so tests and console mode don't need it
     return serial.Serial(
         device, baudrate=baud, bytesize=bits, parity=parity,
-        stopbits=stop, timeout=timeout, write_timeout=5)
+        stopbits=stop, timeout=timeout, write_timeout=60)
 
 
 def now() -> float:

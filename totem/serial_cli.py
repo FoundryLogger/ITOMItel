@@ -111,13 +111,13 @@ def cmd_serial(args) -> None:
     shop = Shop(args.store, cache_dir=args.cache)
     app = App(shop, width=args.width, loading_delay=args.loading_delay)
     term = SerialTerminal(_open(args), args.profile, 0, args.baud)
-    app.on_loading = lambda rows: term.draw(rows)
+    app.on_loading = lambda rows: term.try_draw(rows)
     parity = {"E": "pari", "O": "dispari", "N": "nessuna"}[args.parity]
     app.line_info = f"{args.baud} baud, {args.bits} bit, parità {parity}, {args.stop} stop"
     decoder = KeyDecoder(load_keymap(args.keymap))
     print(f"Totem attivo su {args.port}, profilo {args.profile}. Ctrl+C per uscire.",
           file=sys.stderr)
-    secs = term.draw(app.screen(), full=True)
+    secs = term.try_draw(app.screen(), full=True)
     print(f"[disegno schermata: ~{secs:.1f}s]", file=sys.stderr)
     last = time.monotonic()
     try:
@@ -135,7 +135,7 @@ def cmd_serial(args) -> None:
                 app.key(k)
             # Ripetiz. redraws everything: handy if the terminal was just switched on
             # or the screen got scrambled.
-            secs = term.draw(app.screen(), full=args.full or RIPETIZ in keys)
+            secs = term.try_draw(app.screen(), full=args.full or RIPETIZ in keys)
             print(f"[disegno: ~{secs:.1f}s]", file=sys.stderr)
     except KeyboardInterrupt:
         pass
