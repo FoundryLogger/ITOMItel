@@ -52,8 +52,8 @@ MIDI tagliato (stessa posizione dei pin misurati):
 |---|---|---|
 | esterno | 0 V | massa |
 | **rosso** | 4 V (sorgente debole) | **ingresso dati del terminale**: il Pi trasmette qui (testato) |
-| bianco | 4 V (sorgente debole) | probabile uscita dati (tasti): ancora da confermare |
-| nero | 0,1 V | da capire |
+| bianco | 4 V (sorgente debole) | non usato |
+| **nero** | 0,1 V (collettore aperto) | **uscita dei tasti**: richiede un richiamo (pull-up) dal Pi |
 | giallo | **13,4 V** | alimentazione ausiliaria: **non collegarla mai** |
 
 Le linee sono TTL con resistenza interna di 6-10 kΩ circa, quindi un partitore da
@@ -61,11 +61,26 @@ Le linee sono TTL con resistenza interna di 6-10 kΩ circa, quindi un partitore 
 con `dtoverlay=disable-bt`) a 3,3 V:
 
 - Pi → Minitel: pin 8 (TXD) → resistore 1 kΩ → filo rosso. Funziona a 1200 baud 7E1.
-- Minitel → Pi: filo dati → resistore 47 kΩ → pin 10 (RXD), con 100 kΩ dal pin 10 a massa
-  (circa 2,6 V al Pi). Pin 6 = massa comune.
+- Minitel → Pi: filo **nero** → resistore 1 kΩ → pin 10 (RXD), più un resistore 10 kΩ dal pin 10
+  al pin 1 (3,3 V) come richiamo: l'uscita è a collettore aperto. Pin 6 = massa comune.
+  Funziona: `learn` ha riconosciuto tutti i tasti e il catalogo si naviga dalla tastiera del Minitel.
 
 Terminale in modalità **Ascii 80 col**: con `probe` il profilo **ansi** (ESC[2J, ESC[r;cH,
 ESC[K) pulisce e posiziona il testo; la prima schermata completa compare in 4-5 secondi.
+
+## Avvio automatico sul Raspberry Pi
+
+Dopo aver copiato il progetto in `~/ITOMItel` (utente `itomitel`) e aver fatto `learn`:
+
+```bash
+sudo cp ~/ITOMItel/deploy/itomitel.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now itomitel
+```
+
+Il totem parte all'accensione e si riavvia da solo se si ferma. Log: `journalctl -u itomitel -f`.
+Dopo aver aggiornato il codice: `sudo systemctl restart itomitel`. Se il Minitel viene acceso dopo
+il Pi, il tasto Ripetiz. ridisegna tutta la schermata.
 
 ## Struttura
 
@@ -84,7 +99,6 @@ in `totem/app.py`.
 
 ## Ancora da fare
 
-- Tasti: trovare quale filo trasmette (bianco?), provare il tasto Linea, poi `learn`.
 - Caratteri accentati sul terminale vero (ora si scrivono come `e'`, `EUR`).
 - Se il terminale accetta velocità più alte, passarci (da 1200 a 9600 baud la schermata
   scende da ~10 s a ~1 s).

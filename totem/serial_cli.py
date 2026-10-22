@@ -13,7 +13,7 @@ import select
 import sys
 import time
 
-from .app import App, INDICE
+from .app import App, INDICE, RIPETIZ
 from .shop import Shop
 from .terminal import (KEY_NAMES, KeyDecoder, PROFILES, SerialTerminal, load_keymap,
                        open_port, save_keymap, to_ascii)
@@ -133,7 +133,9 @@ def cmd_serial(args) -> None:
             for k in keys:
                 print(f"[tasto {k}]", file=sys.stderr)
                 app.key(k)
-            secs = term.draw(app.screen(), full=args.full)
+            # Ripetiz. redraws everything: handy if the terminal was just switched on
+            # or the screen got scrambled.
+            secs = term.draw(app.screen(), full=args.full or RIPETIZ in keys)
             print(f"[disegno: ~{secs:.1f}s]", file=sys.stderr)
     except KeyboardInterrupt:
         pass
