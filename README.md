@@ -60,6 +60,51 @@ Le linee sono TTL con resistenza interna di 6-10 kΩ circa, quindi un partitore 
 3 kΩ le fa crollare. Il Pi 3 usa **/dev/serial0** (UART PL011, Bluetooth disattivato
 con `dtoverlay=disable-bt`) a 3,3 V:
 
+**Cablaggio definitivo, senza breadboard né resistori** (verificato 2026-10-22):
+
+| Dal Minitel | Al Raspberry Pi |
+|---|---|
+| filo esterno (massa) | pin 6 (GND) |
+| filo rosso (ingresso dati) | pin 8 (GPIO14, TXD) |
+| filo nero (uscita tasti) | pin 10 (GPIO15, RXD) |
+
+Bianco e giallo (13,4 V) restano isolati. Funziona perché il rosso è un ingresso con richiamo
+debole (non può spingere corrente nel Pi) e il nero è a collettore aperto: il richiamo lo fa il
+pull-up interno di GPIO15 (controllabile con `pinctrl get 15`). Se i tasti dovessero perdere
+colpi, aggiungere un resistore da 10 kΩ tra pin 10 e pin 1 (3,3 V). Durante i test erano usati
+1 kΩ in serie su entrambi i fili e 10 kΩ di richiamo.
+
+Terminale in modalità **Ascii 80 col** (voce 4 del
+menu di accensione).
+
+```bash
+python3 -m totem monitor --port /dev/cu.usbserial-XXXX   # mostra i byte che invia il Minitel
+python3 -m totem probe   --port ...                       # prova i profili di controllo schermo
+python3 -m totem learn   --port ...                       # impara i tasti → keymap.json
+python3 -m totem serial  --port /dev/serial0              # avvia il totem (profilo ansi)
+```
+
+A 1200 baud una schermata piena impiega circa 8-11 secondi: per questo la schermata
+di caricamento è volutamente minima e `--profile ansi` / `vt52` (se il terminale li
+capisce) ridisegnano solo le righe cambiate.
+
+## Cablaggio (verificato sul campo, 2026-10-22)
+
+Presa DIN a 5 poli femmina a 180° vista dal davanti, chiave in alto. Fili del cavo
+MIDI tagliato (stessa posizione dei pin misurati):
+
+| Filo | Tensione a riposo | Ruolo |
+|---|---|---|
+| esterno | 0 V | massa |
+| **rosso** | 4 V (sorgente debole) | **ingresso dati del terminale**: il Pi trasmette qui (testato) |
+| bianco | 4 V (sorgente debole) | non usato |
+| **nero** | 0,1 V (collettore aperto) | **uscita dei tasti**: richiede un richiamo (pull-up) dal Pi |
+| giallo | **13,4 V** | alimentazione ausiliaria: **non collegarla mai** |
+
+Le linee sono TTL con resistenza interna di 6-10 kΩ circa, quindi un partitore da
+3 kΩ le fa crollare. Il Pi 3 usa **/dev/serial0** (UART PL011, Bluetooth disattivato
+con `dtoverlay=disable-bt`) a 3,3 V:
+
 - Pi → Minitel: pin 8 (TXD) → resistore 1 kΩ → filo rosso. Funziona a 1200 baud 7E1.
 - Minitel → Pi: filo **nero** → resistore 1 kΩ → pin 10 (RXD), più un resistore 10 kΩ dal pin 10
   al pin 1 (3,3 V) come richiamo: l'uscita è a collettore aperto. Pin 6 = massa comune.
