@@ -15,6 +15,7 @@ import time
 
 from .app import App, INDICE, RIPETIZ
 from .shop import Shop
+from .text import set_ascii_only
 from .terminal import (KEY_NAMES, KeyDecoder, PROFILES, SerialTerminal, load_keymap,
                        open_port, save_keymap, to_ascii)
 
@@ -108,6 +109,7 @@ def cmd_probe(args) -> None:
 
 
 def cmd_serial(args) -> None:
+    set_ascii_only(True)   # accents and euro are spelled out before the layout is computed
     shop = Shop(args.store, cache_dir=args.cache)
     app = App(shop, width=args.width, loading_delay=args.loading_delay)
     term = SerialTerminal(_open(args), args.profile, 0, args.baud)

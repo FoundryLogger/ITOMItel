@@ -241,7 +241,7 @@ class CategoryList(Paged):
         body = [""]
         for i, c in enumerate(self.items[start:start + self.per_page], 1):
             count = f"({c.count})"
-            body.append(f" {i}  {fit(c.title, w - 8 - len(count))}".ljust(w - len(count) - 1)
+            body.append(f" {i}  {fit(sanitize(c.title), w - 8 - len(count))}".ljust(w - len(count) - 1)
                         + " " + count)
         return render(w, "CATEGORIE", body, hint="Premi il numero desiderato",
                       keys=self.paging_keys(), page=(self.page, self.pages()))
@@ -272,7 +272,7 @@ class ProductList(Paged):
         if not p.available:
             return "esaurito"
         pre = "da " if p.price_from != p.price_to else ""
-        return f"{pre}{money(p.price_from)}€"
+        return sanitize(f"{pre}{money(p.price_from)}€")
 
     @staticmethod
     def _info(p: Product) -> str:
@@ -281,7 +281,7 @@ class ProductList(Paged):
             bits.append(f"{len(p.variants)} varianti")
         if p.on_sale and p.available:
             bits.append("IN OFFERTA")
-        return " - ".join(bits)
+        return sanitize(" - ".join(bits))
 
     def screen(self):
         w = self.w
@@ -293,7 +293,7 @@ class ProductList(Paged):
         body = [""]
         for i, p in enumerate(self.items[start:start + self.per_page], 1):
             price = self._price(p)
-            name = fit(p.title, w - 5 - len(price))
+            name = fit(sanitize(p.title), w - 5 - len(price))
             body.append(f" {i}  {name}".ljust(w - len(price) - 1) + " " + price)
             if w >= 80:  # room for a second line per product
                 body.append("    " + self._info(p))
@@ -323,17 +323,17 @@ class ProductDetail(Paged):
         lines = wrap(sanitize(p.title), w) + [""]
         if p.available:
             pre = "da " if p.price_from != p.price_to else ""
-            price = f"{pre}{money(p.price_from)}€"
+            price = sanitize(f"{pre}{money(p.price_from)}€")
             if p.on_sale:
                 was = max(v.compare_at for v in p.variants if v.compare_at)
-                price += f"  (era {money(was)}€)"
+                price += sanitize(f"  (era {money(was)}€)")
             lines.append(price)
         else:
             lines.append("Esaurito")
         if len(p.variants) > 1:
             lines.append("")
             for v in p.variants[:8]:
-                right = money(v.price) + "€" if v.available else "esaurito"
+                right = sanitize(money(v.price) + "€") if v.available else "esaurito"
                 name = fit(sanitize(v.title), w - len(right) - 3)
                 lines.append(f"- {name}".ljust(w - len(right)) + right)
             if len(p.variants) > 8:

@@ -12,10 +12,12 @@ cursor addressing, and trims trailing spaces.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
 
+from .text import ascii_spell
 from .app import (ANNUL, CORREZIONE, GUIDA, INDICE, INVIO, PRECEDENTE, RIPETIZ,
                   SEGUENTE)
 
@@ -35,19 +37,48 @@ PROFILES = {
              "eol": b"\x1bK"},
 }
 
-_ACCENTS = {"à": "a'", "è": "e'", "é": "e'", "ì": "i'", "ò": "o'", "ù": "u'",
-            "À": "A'", "È": "E'", "É": "E'", "Ì": "I'", "Ò": "O'", "Ù": "U'",
-            "ç": "c", "Ç": "C", "€": "EUR", "£": "GBP", "§": "par.", "°": "o"}
-
-
-def to_ascii(s: str) -> str:
-    """Spell out the characters plain ASCII lacks (è -> e', € -> EUR)."""
-    s = "".join(_ACCENTS.get(ch, ch) for ch in s)
-    return s.encode("ascii", "replace").decode("ascii")
+to_ascii = ascii_spell  # kept as the terminal-facing name
 
 
 def _row_bytes(row: str, margin: int) -> bytes:
     return to_ascii(" " * margin + row.rstrip()).encode("ascii")
+
+
+def _segments(text: str, min_gap: int) -> list[tuple[int, str]]:
+    """Split a row into (column, text) pieces, dropping runs of at least
+    min_gap spaces: jumping over them costs fewer bytes than sending them."""
+    segs, col = [], 0
+    for m in re.finditer(" {%d,}" % max(1, min_gap), text):
+        if m.start() > col:
+            segs.append((col, text[col:m.start()]))
+        col = m.end()
+    if col < len(text):
+        segs.append((col, text[col:]))
+    return segs
+
+
+def _sparse_row(i: int, row: str, goto, margin: int) -> bytes:
+    """Row i drawn piece by piece with cursor jumps. Assumes it is blank."""
+    text = row.rstrip()
+    min_gap = len(goto(i, 79)) + 1          # a jump costs about this many bytes
+    return b"".join(goto(i, c + margin) + to_ascii(seg).encode("ascii")
+                    for c, seg in _segments(text, min_gap))
+
+
+def _full_draw(rows: list[str], goto, margin: int) -> bytes:
+    """Draw every row on a blank screen, cursor at home, choosing for each row the
+    cheaper of 'line feeds + the row as it is' and 'jump + only the pieces'."""
+    out = []
+    cur = None                      # row the cursor is on; None = still at home
+    for i, row in enumerate(rows):
+        if not row.strip():
+            continue
+        moves = i if cur is None else i - cur
+        dense = b"\r\n" * moves + _row_bytes(row, margin)
+        sparse = _sparse_row(i, row, goto, margin)
+        out.append(min(dense, sparse, key=len))
+        cur = i
+    return b"".join(out)
 
 
 def encode_screen(rows: list[str], prev: list[str] | None, profile: str = "plain",
@@ -55,6 +86,8 @@ def encode_screen(rows: list[str], prev: list[str] | None, profile: str = "plain
     """Bytes that turn the terminal from `prev` into `rows`.
 
     margin shifts everything right (only useful to centre a 40-column screen).
+    With cursor addressing, long runs of spaces are skipped with a cursor jump
+    instead of being sent, and only changed rows are redrawn.
     """
     p = PROFILES[profile]
     goto = p["goto"]
@@ -64,16 +97,22 @@ def encode_screen(rows: list[str], prev: list[str] | None, profile: str = "plain
         # bottom need no bytes.
         while shown and not shown[-1].strip():
             shown = shown[:-1]
-    full = p["clear"] + b"\r\n".join(_row_bytes(r, margin) for r in shown)
     if goto is None:
         # No cursor addressing: scroll the new screen in below the old one.
+        full = p["clear"] + b"\r\n".join(_row_bytes(r, margin) for r in shown)
         return (b"\r\n" + full) if profile == "plain" else full
+    full = p["clear"] + _full_draw(shown, goto, margin)
     if prev is None or force_full:
         return full
-    diff = b"".join(goto(i, 0) + _row_bytes(r, margin) + p["eol"]
-                    for i, (r, o) in enumerate(zip(rows, prev)) if r != o)
+    pieces = []
+    for i, (r, o) in enumerate(zip(rows, prev)):
+        if r == o:
+            continue
+        dense = goto(i, 0) + _row_bytes(r, margin) + p["eol"]
+        sparse = goto(i, 0) + p["eol"] + _sparse_row(i, r, goto, margin)
+        pieces.append(min(dense, sparse, key=len))
     # Park the cursor on the last row so a local echo lands out of the way.
-    diff += goto(ROWS - 1, len(rows[0]) - 1)
+    diff = b"".join(pieces) + goto(ROWS - 1, len(rows[0]) - 1)
     return diff if len(diff) < len(full) else full
 
 

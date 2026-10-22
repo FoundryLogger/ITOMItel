@@ -22,6 +22,27 @@ _TABLE = str.maketrans({
 })
 
 
+# Accents and symbols spelled out for terminals that only have plain ASCII.
+_ACCENTS = {"à": "a'", "è": "e'", "é": "e'", "ì": "i'", "ò": "o'", "ù": "u'",
+            "À": "A'", "È": "E'", "É": "E'", "Ì": "I'", "Ò": "O'", "Ù": "U'",
+            "ç": "c", "Ç": "C", "€": "EUR", "£": "GBP", "§": "par.", "°": "o"}
+
+# When True (real terminal in Ascii mode), sanitize() already spells everything
+# in plain ASCII, so the layout code sees the true width of each line.
+ASCII_ONLY = False
+
+
+def set_ascii_only(value: bool) -> None:
+    global ASCII_ONLY
+    ASCII_ONLY = value
+
+
+def ascii_spell(s: str) -> str:
+    """Spell out the characters plain ASCII lacks (è -> e', € -> EUR)."""
+    s = "".join(_ACCENTS.get(ch, ch) for ch in s)
+    return s.encode("ascii", "replace").decode("ascii")
+
+
 def sanitize(s: str) -> str:
     """Replace characters the terminal can't show with plain ASCII."""
     out = []
@@ -31,7 +52,8 @@ def sanitize(s: str) -> str:
         else:
             folded = unicodedata.normalize("NFKD", ch)
             out.append("".join(c for c in folded if 32 <= ord(c) < 127))
-    return "".join(out)
+    result = "".join(out)
+    return ascii_spell(result) if ASCII_ONLY else result
 
 
 def fold(s: str) -> str:
