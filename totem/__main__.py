@@ -53,6 +53,10 @@ def serial_main(cmd: str) -> None:
                         help="seconds of inactivity before going back to the menu (0 = never)")
         ap.add_argument("--loading-delay", type=float, default=0.5,
                         help="seconds before the loading screen appears (0 = always)")
+        ap.add_argument("--saver", type=int, default=300,
+                        help="seconds of inactivity before the screensaver starts (0 = never)")
+        ap.add_argument("--saver-ink", default="#",
+                        help="character that fills the negative logo (default #)")
         ap.add_argument("--full", action="store_true",
                         help="always redraw the whole screen")
     args = ap.parse_args(sys.argv[2:])

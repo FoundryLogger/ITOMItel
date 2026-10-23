@@ -39,6 +39,10 @@
   h1 span { color: var(--muted); font-weight: 400; }
   .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; color: var(--muted); }
   .controls label { display: flex; align-items: center; gap: 6px; }
+  .controls button {
+    background: #181c1a; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 10px; font: inherit; cursor: pointer;
+  }
   select {
     background: #181c1a; color: var(--ink); border: 1px solid var(--line);
     border-radius: 6px; padding: 5px 8px; font: inherit;
@@ -116,6 +120,15 @@
     <label>Colonne
       <select id="cols"><option value="80">80</option><option value="40">40</option></select>
     </label>
+    <label>Screensaver
+      <select id="saver">
+        <option value="0">Mai</option>
+        <option value="20">Dopo 20 s</option>
+        <option value="60">Dopo 1 minuto</option>
+        <option value="300">Dopo 5 minuti</option>
+      </select>
+    </label>
+    <button id="saverNow" type="button">Prova screensaver</button>
     <label>Velocità linea
       <select id="speed">
         <option value="0">Istantanea</option>
@@ -252,6 +265,39 @@
     catch (e) { statusEl.textContent = "Il server non risponde. È ancora acceso?"; }
   }
 
+  /* ---- screensaver: frames come from the server (same cycle as the real terminal) ---- */
+  let saverTimer = null, saverActive = false, saverRun = 0;
+  const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+
+  function armSaver() {
+    clearTimeout(saverTimer);
+    const secs = Number($("saver").value);
+    if (secs && !saverActive) saverTimer = setTimeout(startSaver, secs * 1000);
+  }
+
+  async function startSaver() {
+    if (saverActive) return;
+    saverActive = true;
+    const run = ++saverRun;
+    statusEl.textContent = "";
+    try {
+      const r = await call(`/api/saver?width=${width}`);
+      while (saverActive && run === saverRun) {
+        for (const f of r.frames) {
+          if (!saverActive || run !== saverRun) return;
+          draw(f.rows, true);
+          await sleep(Math.min(f.pause * 1000, 8000));   // the real hold is longer
+        }
+      }
+    } catch (e) { saverActive = false; }
+  }
+
+  async function wake() {                       // the key that wakes it is not a command
+    saverActive = false; saverRun++;
+    await load();
+    armSaver();
+  }
+
   /* ---- input ---- */
   const KEYMAP = {
     Enter: "INVIO", Backspace: "CORREZIONE", Escape: "ANNUL", Home: "INDICE",
@@ -260,6 +306,8 @@
   };
   window.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;      // leave browser shortcuts alone
+    if (saverActive) { e.preventDefault(); wake(); return; }
+    armSaver();
     // A focused menu keeps its own navigation keys; everything else goes to the terminal.
     if (e.target.tagName === "SELECT" && ["ArrowUp", "ArrowDown", "Enter", " ", "Tab"].includes(e.key)) return;
     const named = KEYMAP[e.key];
@@ -267,8 +315,9 @@
     else if (e.key.length === 1) { e.preventDefault(); press(e.key); }
   });
   $("keys").addEventListener("click", (e) => {
+    if (saverActive) { wake(); return; }
     const b = e.target.closest("button[data-key]");
-    if (b) press(b.dataset.key);
+    if (b) { press(b.dataset.key); armSaver(); }
   });
 
   /* ---- settings ---- */
@@ -278,6 +327,11 @@
   width = Number($("cols").value);
   const applyPhosphor = () => { document.body.dataset.phosphor = $("phosphor").value; };
   applyPhosphor();
+
+  $("saver").value = store.get("itomitel.saver", "60");
+  $("saver").addEventListener("change", () => { store.set("itomitel.saver", $("saver").value); $("saver").blur(); armSaver(); });
+  $("saverNow").addEventListener("click", () => { $("saverNow").blur(); startSaver(); });
+  glass.addEventListener("click", () => { if (saverActive) wake(); });
 
   $("phosphor").addEventListener("change", () => { applyPhosphor(); store.set("itomitel.phosphor", $("phosphor").value); $("phosphor").blur(); });
   $("speed").addEventListener("change", () => { store.set("itomitel.speed", $("speed").value); $("speed").blur(); draw(rows); });
@@ -290,6 +344,7 @@
   fit();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fit(); });
   load();
+  armSaver();
 })();
 </script>
 </body>

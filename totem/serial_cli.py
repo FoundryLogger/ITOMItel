@@ -14,6 +14,7 @@ import sys
 import time
 
 from .app import App, INDICE, RIPETIZ
+from .saver import Screensaver
 from .shop import Shop
 from .text import set_ascii_only
 from .terminal import (KEY_NAMES, KeyDecoder, PROFILES, SerialTerminal, load_keymap,
@@ -122,16 +123,29 @@ def cmd_serial(args) -> None:
     secs = term.try_draw(app.screen(), full=True)
     print(f"[disegno schermata: ~{secs:.1f}s]", file=sys.stderr)
     last = time.monotonic()
+    saver = Screensaver(args.width, args.saver, args.saver_ink)
     try:
         while True:
             data = term.read()
             keys = decoder.feed(data) if data else decoder.flush()
-            idle = time.monotonic() - last > args.idle and args.idle > 0
-            if not keys and idle and len(app.stack) > 1:
+            now = time.monotonic()
+            if keys and saver.wake():
+                # The key that wakes the screensaver is not a command: just bring back
+                # the screen that was showing.
+                print("[screensaver: sveglia]", file=sys.stderr)
+                last = now
+                secs = term.try_draw(app.screen(), full=True)
+                print(f"[disegno: ~{secs:.1f}s]", file=sys.stderr)
+                continue
+            idle = now - last > args.idle and args.idle > 0
+            if not keys and idle and len(app.stack) > 1 and not saver.active:
                 keys = [INDICE]
             if not keys:
+                frame = saver.tick(now, last)
+                if frame is not None:
+                    term.try_draw(frame)
                 continue
-            last = time.monotonic()
+            last = now
             for k in keys:
                 print(f"[tasto {k}]", file=sys.stderr)
                 app.key(k)

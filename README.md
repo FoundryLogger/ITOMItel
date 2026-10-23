@@ -80,6 +80,17 @@ Se i tasti dovessero perdere colpi, aggiungere un resistore da 10 kΩ tra pin 10
 Durante i test erano usati 1 kΩ in serie su entrambi i fili. Con un partitore a resistori bassi
 (es. 1 kΩ + 2 kΩ) le linee crollano: evitarlo.
 
+## Screensaver
+
+Dopo 5 minuti senza tasti il Minitel mostra il logo ITOMI **in negativo** (il logo è "scavato" in un
+campo di `#`), centrato e costruito riga per riga: fermo per 30 secondi, poi si cancella dal basso e
+lo schermo resta vuoto per 20 secondi, in ciclo. Un tasto qualsiasi lo interrompe e riporta la
+schermata di prima; **quel tasto non vale come comando**. Un ciclo completo costa circa 1,2 KB (10 s
+di trasmissione a 1200 baud). Opzioni di `serial`: `--saver SECONDI` (default 300, 0 = mai) e
+`--saver-ink CARATTERE` per cambiare il riempimento. Dopo 2 minuti di inattività il totem torna
+prima alla home (`--idle`). Nell'emulatore web c'è il menu "Screensaver" e il pulsante
+"Prova screensaver". Il codice è in `totem/saver.py`.
+
 ## Avvio automatico sul Raspberry Pi
 
 Dopo aver copiato il progetto in `~/ITOMItel` (utente `itomitel`) e aver fatto `learn`:
@@ -103,6 +114,7 @@ il Pi, il tasto Ripetiz. ridisegna tutta la schermata.
 | `totem/logo.py` | logo ITOMI in ASCII (griglia 21 × 12 moduli) |
 | `totem/terminal.py` | codifica schermo → byte ASCII e byte → tasti, con aggiornamento a righe |
 | `totem/serial_cli.py` | comandi `serial`, `monitor`, `probe`, `learn` |
+| `totem/saver.py` | screensaver: logo in negativo costruito a righe |
 | `totem/web.py`, `totem/web/index.html` | emulatore nel browser |
 | `tests/` | test senza hardware né rete: `python3 -m unittest discover tests` |
 
@@ -112,7 +124,8 @@ in `totem/app.py`.
 ## Ancora da fare
 
 - Caratteri accentati sul terminale vero (ora si scrivono come `e'`, `EUR`).
-- Oscurare lo schermo dopo un po' di inattività per risparmiare il tubo catodico.
+- Verificare sul terminale vero lo screensaver; se supporta il video inverso (ESC[7m), il logo in negativo
+  potrebbe essere a blocchi pieni invece che di `#`.
 
 ## Usarlo con un altro negozio Shopify
 

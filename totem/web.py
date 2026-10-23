@@ -6,6 +6,7 @@ phosphor monitor and sends key presses back.
 
     GET  /                          the emulator page
     GET  /api/screen?sid=..&width=  current screen
+    GET  /api/saver?width=          the screensaver frames (rows + pause)
     POST /api/key  {sid, width, key}  press a key, get the new screen
 
 A slow fetch answers with the loading screen and busy=true; the page then
@@ -21,6 +22,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .app import App
+from .saver import cycle
 from .shop import Shop
 
 PAGE = Path(__file__).parent / "web" / "index.html"
@@ -100,6 +102,11 @@ def make_server(shop: Shop, host: str = "127.0.0.1", port: int = 8765,
                 sid = q.get("sid", ["default"])[0]
                 width = int(q.get("width", ["80"])[0] or 80)
                 self._json(sessions.get(sid, width).snapshot())
+            elif url.path == "/api/saver":
+                q = parse_qs(url.query)
+                width = int(q.get("width", ["80"])[0] or 80)
+                frames = cycle(width if width in (40, 80) else 80)
+                self._json({"frames": [{"rows": rows, "pause": pause} for rows, pause in frames]})
             else:
                 self._send(404, b"not found", "text/plain")
 
