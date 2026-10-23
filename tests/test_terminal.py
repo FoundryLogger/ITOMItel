@@ -114,8 +114,8 @@ class DecoderTests(unittest.TestCase):
 class ArrowKeyTests(unittest.TestCase):
     def test_an_unknown_escape_sequence_is_dropped_whole_and_remembered(self):
         d = KeyDecoder()
-        self.assertEqual(d.feed(b"a\x1b[Cb"), ["a", "b"])        # no stray "[" and "C" typed
-        self.assertEqual(d.take_unknown(), [b"\x1b[C"])
+        self.assertEqual(d.feed(b"a\x1b[Ab"), ["a", "b"])        # up arrow: no stray "[" and "A" typed
+        self.assertEqual(d.take_unknown(), [b"\x1b[A"])
         self.assertEqual(d.take_unknown(), [])                    # reported once
 
     def test_other_escape_forms(self):
@@ -126,8 +126,10 @@ class ArrowKeyTests(unittest.TestCase):
     def test_a_sequence_split_in_two_reads_is_put_together(self):
         d = KeyDecoder()
         self.assertEqual(d.feed(b"\x1b"), [])
-        self.assertEqual(d.feed(b"[D"), [])
-        self.assertEqual(d.take_unknown(), [b"\x1b[D"])
+        self.assertEqual(d.feed(b"[B"), [])
+        self.assertEqual(d.take_unknown(), [b"\x1b[B"])
+        self.assertEqual(d.feed(b"\x1b"), [])                    # a known one, split the same way
+        self.assertEqual(d.feed(b"[D"), [SINISTRA])
 
     def test_a_lone_escape_is_dropped_after_a_pause(self):
         d = KeyDecoder()
@@ -139,6 +141,17 @@ class ArrowKeyTests(unittest.TestCase):
         d = KeyDecoder({DESTRA: [b"\x1b[C"], SINISTRA: [b"\x1b[D"]})
         self.assertEqual(d.feed(b"\x1b[C\x1b[Dx"), [DESTRA, SINISTRA, "x"])
         self.assertEqual(d.take_unknown(), [])
+
+    def test_the_arrows_of_the_hcs_80_work_without_any_learning(self):
+        d = KeyDecoder()                                          # no keymap.json at all
+        self.assertEqual(d.feed(b"\x1b[C\x1b[D"), [DESTRA, SINISTRA])
+        self.assertEqual(d.take_unknown(), [])
+        d.feed(b"\x1b[A\x1b[B")                                  # up and down: seen, ignored, logged
+        self.assertEqual(d.take_unknown(), [b"\x1b[A", b"\x1b[B"])
+
+    def test_a_learned_keymap_still_wins_over_the_defaults(self):
+        d = KeyDecoder({DESTRA: [b"\x1bOC"]})
+        self.assertEqual(d.feed(b"\x1bOC"), [DESTRA])
 
     def test_arrows_do_what_seguente_and_precedente_do(self):
         class Shop:

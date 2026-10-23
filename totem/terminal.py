@@ -127,7 +127,10 @@ class KeyDecoder:
     keymap maps key names (INDICE, SEGUENTE, ...) to lists of byte
     sequences. Printable ASCII passes through as typed characters.
     """
-    DEFAULTS = {INVIO: [b"\r"], CORREZIONE: [b"\x08", b"\x7f"], SEGUENTE: [b"\t"]}
+    # The arrows are the standard ANSI ones (seen in the log of the real HCS 80/08: right
+    # ESC [ C, left ESC [ D); the other keys differ per terminal and come from keymap.json.
+    DEFAULTS = {INVIO: [b"\r"], CORREZIONE: [b"\x08", b"\x7f"], SEGUENTE: [b"\t"],
+                DESTRA: [b"\x1b[C"], SINISTRA: [b"\x1b[D"]}
 
     def __init__(self, keymap: dict[str, list[bytes]] | None = None):
         table = {k: list(v) for k, v in self.DEFAULTS.items()}
