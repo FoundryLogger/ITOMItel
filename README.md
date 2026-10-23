@@ -117,6 +117,9 @@ velocità (il Pi legge e scarta la risposta) e dopo **1 secondo** il Pi passa al
 chiede da solo la velocità salvata. Se il Minitel viene spento e riacceso torna a 1200: premendo
 Indice, 4 e Ripetiz. il Pi riceve spazzatura (parla a 4800 mentre il terminale è a 1200), se ne accorge
 (4 o più byte di controllo scartati in un colpo) e ricomincia da 1200 chiedendo di nuovo la velocità.
+**Non premere `Funz.` + `P` + `4` sul terminale**: sui Minitel francesi imposta i 4800 baud, sull'HCS 80/08
+sceglie invece un alfabeto nazionale (il 4 mostra `£` al posto di `#`, e cambiano anche `@ [ \ ] ^ { | } ~`)
+fino allo spegnimento. Se succede, basta spegnere e riaccendere il terminale (poi Indice, 4, Ripetiz.).
 Il 23 ottobre 2026 la prima prova a 4800 era fallita perché dopo il comando si aspettava solo 0,6 secondi;
 con 1 secondo funziona. 2400 e 9600 non sono stati verificati e non sono offerti. A 4800 baud una schermata
 piena impiega circa 2 secondi invece di 8.
