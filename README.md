@@ -80,6 +80,23 @@ Se i tasti dovessero perdere colpi, aggiungere un resistore da 10 kΩ tra pin 10
 Durante i test erano usati 1 kΩ in serie su entrambi i fili. Con un partitore a resistori bassi
 (es. 1 kΩ + 2 kΩ) le linee crollano: evitarlo.
 
+## Televideo RAI
+
+Voce **7** del menu. Mostra le pagine di RAI Televideo nella versione "solo testo" che RAI pubblica
+sul web (`servizitelevideo.rai.it`, 40 colonne, centrate sullo schermo a 80). Si digitano **3 cifre**
+(100-899) e la pagina si apre al terzo numero, come con il telecomando; **Seguente/Precedente**
+scorrono la pagina se è più lunga dello schermo, poi passano alla sottopagina e infine alla pagina
+successiva o precedente. Niente colori né grafica a mosaico. Ogni schermata riporta la fonte
+("Fonte: RAI Televideo - servizitelevideo.rai.it"). Il codice è in `totem/televideo.py`.
+
+**I contenuti sono di RAI.** Il programma li legge **solo quando qualcuno li chiede**, li tiene in
+memoria **al massimo 2 minuti** (mai su disco), aspetta 0,4 s tra una richiesta e l'altra e si
+dichiara con uno User-Agent che rimanda a questo repository. Nessun testo di Televideo è nel
+repository (i test usano pagine inventate). Prima di mostrarlo al pubblico verifica le condizioni
+di riutilizzo di RAI: gli autori di questo progetto non le hanno trovate e non possono garantire
+che l'uso sia consentito. Se vuoi disattivare la funzione, togli la voce `Televideo RAI` da
+`HOME_ITEMS` in `totem/app.py`.
+
 ## Screensaver
 
 Dopo 5 minuti senza tasti il Minitel riempie **tutto lo schermo di `#`** e lascia **vuoto solo il logo
@@ -134,6 +151,7 @@ in `~/.ssh/config`. Il Minitel va riportato in Ascii 80 col dopo il riavvio (Rip
 | `totem/terminal.py` | codifica schermo → byte ASCII e byte → tasti, con aggiornamento a righe |
 | `totem/serial_cli.py` | comandi `serial`, `monitor`, `probe`, `learn` |
 | `totem/saver.py` | screensaver: schermo pieno di `#` con il logo scavato al centro |
+| `totem/televideo.py` | lettura di RAI Televideo (solo testo) su richiesta, con cache di 2 minuti |
 | `totem/settings.py` | impostazioni modificabili dal Minitel, salvate in `settings.json` |
 | `totem/web.py`, `totem/web/index.html` | emulatore nel browser |
 | `tests/` | test senza hardware né rete: `python3 -m unittest discover tests` |

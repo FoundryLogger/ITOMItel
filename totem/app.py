@@ -14,6 +14,7 @@ import threading
 from . import logo
 from .settings import ORDER, SPECS, Settings
 from .shop import Product, Shop
+from .televideo import FIRST_PAGE, LAST_PAGE, SOURCE, TelevideoClient
 from .text import fit, money, sanitize, wrap
 
 HEIGHT = 24
@@ -36,6 +37,7 @@ HOME_ITEMS = [
     ("In offerta", "collection", "in-offerta"),
     ("Cerca un prodotto", "search", None),
     ("Credits", "credits", None),
+    ("Televideo RAI", "televideo", None),
 ]
 
 CREDITS_TEXT = """\
@@ -152,13 +154,19 @@ class Home(View):
     def screen(self):
         menu = [f"{i}  {label}" for i, (label, _, _) in enumerate(self.items, 1)]
         if self.w >= 80:
-            # Logo centred (42 columns), the menu centred as a block below it.
+            # Logo centred (42 columns), the menu below it in two centred columns.
             art = logo.lines(compact=False)
             pad = " " * ((self.w - len(art[0])) // 2)
-            menu_pad = " " * ((self.w - max(map(len, menu))) // 2)
-            body = [pad + row for row in art] + [""] + [menu_pad + m for m in menu]
+            half = (len(menu) + 1) // 2
+            left, right = menu[:half], menu[half:]
+            wl, gap = max(map(len, left)), 8
+            wr = max(map(len, right)) if right else 0
+            menu_pad = " " * ((self.w - (wl + gap + wr)) // 2)
+            rows = [menu_pad + left[i].ljust(wl) + (" " * gap + right[i] if i < len(right) else "")
+                    for i in range(len(left))]
+            body = [pad + row for row in art] + [""] + rows
         else:
-            body = logo.lines() + [""] + [f"  {m}" for m in menu]
+            body = logo.lines() + [f"  {m}" for m in menu]      # 12 + 7 rows = the whole body
         keys = "Guida=aiuto"
         return render(self.w, "", body, hint="Premi il numero desiderato",
                       keys=keys.ljust(self.w - len(STORE_DOMAIN)) + STORE_DOMAIN)
@@ -180,6 +188,8 @@ class Home(View):
                 self.app.push(Search(self.app))
             elif kind == "credits":
                 self.app.push(Credits(self.app))
+            elif kind == "televideo":
+                app.push(app.slow(label, lambda: Televideo(app)))
             return True
         return False
 
@@ -209,6 +219,9 @@ class Credits(Paged):
             rows.append(("Linea seriale", self.app.line_info))
         rows.append(("Disegno", "sequenze ANSI per posizionare il cursore: si "
                                 "ridisegnano solo le righe cambiate"))
+        rows.append(("Televideo", "pagine di RAI Televideo (servizitelevideo.rai.it), lette "
+                                  "solo quando le chiedi e tenute in memoria al massimo "
+                                  "2 minuti. I contenuti sono di RAI"))
         rows.append(("Software", "Python 3. Il catalogo di ITOMI.shop viene letto in tempo "
                                  "reale e tenuto in memoria per 5 minuti: se la rete cade, "
                                  "si usa l'ultima copia salvata"))
@@ -353,6 +366,98 @@ class ProductDetail(Paged):
                       page=(self.page, self.pages()))
 
 
+class Televideo(View):
+    """RAI Televideo, text only. Type a 3-digit page number (it loads at the third
+    digit, like on a TV); Seguente/Precedente scroll, then change sub-page, then page."""
+
+    def __init__(self, app, number: int = FIRST_PAGE, sub: int = 1):
+        super().__init__(app)
+        self.entry = ""
+        self.error = ""
+        self.scroll = 0
+        self.page = None
+        self._open(number, sub)
+
+    def _open(self, number: int, sub: int = 1) -> None:
+        """Fetch a page; on any problem keep the current one and say why."""
+        self.error = ""
+        try:
+            page = self.app.tv.get(number, sub)
+        except (OSError, ValueError):
+            self.error = "Televideo non raggiungibile, riprova"
+            return
+        if page is None:
+            self.error = f"Pagina {number} non disponibile"
+            return
+        self.page, self.scroll = page, 0
+
+    def _go(self, number: int, sub: int = 1) -> None:
+        self.app.slow(f"Televideo {number}", lambda: self._open(number, sub))
+
+    def _per_screen(self) -> int:
+        return BODY if len(self.page.lines) <= BODY else BODY - 1
+
+    def screen(self):
+        w, page = self.w, self.page
+        shown = self.entry.ljust(3, "_") if self.entry else (str(page.number) if page else "")
+        pad = " " * ((w - 40) // 2) if w >= 80 else ""
+        body = []
+        if page:
+            per = self._per_screen()
+            body = [pad + sanitize(l) for l in page.lines[self.scroll:self.scroll + per]]
+            if self.scroll + per < len(page.lines):
+                body.append(pad + "  --- continua (Seguente) ---")
+        tag = (page.subs.index(page.sub), len(page.subs)) if page and page.sub in page.subs else None
+        hint = self.error or SOURCE
+        return render(w, f"TELEVIDEO  {shown}", body, hint=hint,
+                      keys=pick(w, "Digita 3 cifre per cambiare pagina   Seguente/Precedente   Indice=menu",
+                                "3 cifre=pagina  Segu/Prec  Indice=menu"),
+                      page=tag)
+
+    def on_key(self, k):
+        if k.isdigit():
+            self.error = ""
+            self.entry += k
+            if len(self.entry) == 3:
+                number, self.entry = int(self.entry), ""
+                if FIRST_PAGE <= number <= LAST_PAGE:
+                    self._go(number)
+                else:
+                    self.error = f"Le pagine vanno da {FIRST_PAGE} a {LAST_PAGE}"
+            return True
+        if k == CORREZIONE:
+            self.entry = self.entry[:-1]
+            return True
+        if k == ANNUL and self.entry:
+            self.entry = ""
+            return True
+        if k == INVIO:
+            self.entry = ""
+            return True
+        if k in (SEGUENTE, PRECEDENTE) and self.page:
+            return self._move(forward=k == SEGUENTE)
+        return False
+
+    def _move(self, forward: bool) -> bool:
+        page, per = self.page, self._per_screen()
+        self.entry = self.error = ""
+        if forward and self.scroll + per < len(page.lines):
+            self.scroll += per
+            return True
+        if not forward and self.scroll > 0:
+            self.scroll = max(0, self.scroll - per)
+            return True
+        later = [s for s in page.subs if (s > page.sub if forward else s < page.sub)]
+        if later:
+            self._go(page.number, min(later) if forward else max(later))
+            return True
+        number = page.number + (1 if forward else -1)
+        if FIRST_PAGE <= number <= LAST_PAGE:
+            self._go(number)
+            return True
+        return False        # before the first page: lets the app go back to the menu
+
+
 class Search(View):
     def __init__(self, app):
         super().__init__(app)
@@ -440,8 +545,10 @@ class SettingsView(View):
 
 class App:
     def __init__(self, shop: Shop, width: int = 80, on_loading=None,
-                 loading_delay: float = 0.5, settings: Settings | None = None):
+                 loading_delay: float = 0.5, settings: Settings | None = None,
+                 televideo: TelevideoClient | None = None):
         self.shop = shop
+        self.tv = televideo or TelevideoClient()
         self.w = width
         self.settings = settings or Settings()   # in memory unless the runner gives a file
         # Called with a screen when a fetch takes longer than loading_delay.

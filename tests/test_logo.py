@@ -27,19 +27,20 @@ class LogoTests(unittest.TestCase):
         art = logo.lines(compact=False)
         self.assertTrue(all(screen[2 + i] == (" " * 19 + art[i]).ljust(80)
                             for i in range(12)))
-        menu_rows = screen[15:21]
+        menu_rows = screen[15:19]                    # two columns: items 1-4 and 5-7
         self.assertTrue(all(r.startswith(" ") and r.strip() for r in menu_rows))
         text = "\n".join(screen)
         self.assertIn("1  Sfoglia le categorie", text)
         self.assertIn("5  Cerca un prodotto", text)
         self.assertIn("6  Credits", text)
+        self.assertIn("7  Televideo RAI", text)
 
     def test_home_40_stacks_logo_over_menu(self):
         screen = App(FakeShop(), width=40).screen()
         self.assertEqual({len(r) for r in screen}, {40})
         self.assertEqual(screen[2:14], logo.lines())
         self.assertEqual(screen[0], "ITOMItel".center(40))
-        self.assertLessEqual(12 + 1 + 6, BODY)
+        self.assertLessEqual(12 + 7, BODY)
 
 
 class HeaderTests(unittest.TestCase):
