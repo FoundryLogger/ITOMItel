@@ -4,7 +4,8 @@
 > into a kiosk that browses and searches a Shopify store's public catalogue. A Raspberry Pi
 > talks to the terminal over its serial port (three wires, no adapter) and renders every screen
 > as 80x24 ASCII with ANSI cursor codes at 1200 baud. Pure Python 3 standard library (plus
-> `pyserial`), with a browser emulator and tests that need no hardware. MIT licensed.
+> `pyserial`), with a browser emulator and tests that need no hardware. Code MIT licensed;
+> ITOMI is a registered trademark (see [TRADEMARK.md](TRADEMARK.md)).
 
 Totem informativo con il catalogo di ITOMI.shop su un terminale Videotel
 **Philips HCS 80/08** (SIP), collegato a un Raspberry Pi via porta seriale.
@@ -130,8 +131,11 @@ fai girare i test (`python3 -m unittest discover tests`): non richiedono hardwar
 Il **codice** è rilasciato con licenza **MIT** (vedi [LICENSE](LICENSE)): puoi usarlo, modificarlo e
 ridistribuirlo, anche per scopi commerciali, mantenendo l'indicazione di copyright.
 
-Il **nome ITOMI/ITOMItel e il logo** appartengono a ITOMI.studio e non sono coperti dalla licenza
-MIT: se riusi il progetto per un altro negozio, sostituisci nome e logo con i tuoi.
+**ITOMI È UN MARCHIO D'IMPRESA REGISTRATO IN ITALIA - REGISTRAZIONE #302023000068748/2023**
+
+Il nome ITOMI/ITOMItel e il logo appartengono a ITOMI.studio e non sono coperti dalla licenza MIT:
+se riusi il progetto per un altro negozio, sostituisci nome e logo con i tuoi (dettagli in
+[TRADEMARK.md](TRADEMARK.md)).
 
 Componenti di terzi: [pyserial](https://github.com/pyserial/pyserial) (licenza BSD-3-Clause,
 solo per il collegamento al terminale); il tipo di carattere non è incluso:
