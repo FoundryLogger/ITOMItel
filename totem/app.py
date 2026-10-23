@@ -210,7 +210,7 @@ class Credits(Paged):
         label_w = 14
         rows = [("Terminale", "Philips HCS 80/08, terminale Videotel SIP costruito dalla "
                               "Radiotechnique Industrielle et Commerciale (Suresnes, Francia)"),
-                ("Standard", "Videotex multistandard: CEPT P2, CEPT P3, ASCII 40 e 80 colonne"),
+                ("Standard", "Videotex multistandard: CEPT P2/P3, ASCII 40 e 80 col."),
                 ("Schermo", f"monocromatico, in modalità ASCII a {self.w} colonne"),
                 ("Computer", "Raspberry Pi 3 Model B, collegato in Wi-Fi alla rete"),
                 ("Collegamento", "tre fili dalla presa DIN a 5 poli del terminale ai pin "
@@ -219,9 +219,8 @@ class Credits(Paged):
             rows.append(("Linea seriale", self.app.line_info))
         rows.append(("Disegno", "sequenze ANSI per posizionare il cursore: si "
                                 "ridisegnano solo le righe cambiate"))
-        rows.append(("Televideo", "pagine di RAI Televideo (servizitelevideo.rai.it), lette "
-                                  "solo quando le chiedi e tenute in memoria al massimo "
-                                  "2 minuti. I contenuti sono di RAI"))
+        rows.append(("Televideo", "pagine RAI lette solo su richiesta e tenute in memoria "
+                                  "2 minuti: i contenuti sono di RAI"))
         rows.append(("Software", "Python 3. Il catalogo di ITOMI.shop viene letto in tempo "
                                  "reale e tenuto in memoria per 5 minuti: se la rete cade, "
                                  "si usa l'ultima copia salvata"))

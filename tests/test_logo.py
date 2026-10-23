@@ -122,7 +122,7 @@ class CreditsTests(unittest.TestCase):
         screen = app.screen()
         text = " ".join(" ".join(screen).split())
         self.assertIn("2/2", screen[0])
-        for phrase in ("SCHEDA TECNICA", "Philips HCS 80/08", "CEPT P2, CEPT P3",
+        for phrase in ("SCHEDA TECNICA", "Philips HCS 80/08", "CEPT P2/P3",
                        "Raspberry Pi 3 Model B", "1200 baud, 7 bit, parità pari, 1 stop"):
             self.assertIn(phrase, text)
         self.assertEqual({len(r) for r in screen}, {80})
@@ -130,6 +130,8 @@ class CreditsTests(unittest.TestCase):
         self.assertIn("senza adattatori", text)
         self.assertNotIn("USB", text)         # the USB-serial adapter was never used
         self.assertIn("sequenze ANSI", text)
+        self.assertIn("i contenuti sono di RAI", text)
+        self.assertEqual(app.view.pages(), 2)          # the sheet, with the serial line row, fits on one page
 
     def test_no_line_row_when_the_speed_is_not_known(self):
         app = App(FakeShop())          # console and web emulator have no serial line
