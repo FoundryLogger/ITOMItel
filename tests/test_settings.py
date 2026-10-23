@@ -84,6 +84,20 @@ class SettingsScreenTests(unittest.TestCase):
         app.key("ANNUL")
         self.assertEqual(app.screen()[0], "ITOMItel".center(80))
 
+    def test_the_main_menu_opens_the_settings_with_9_and_annul_comes_back(self):
+        app = App(FakeShop())
+        app.key("9")
+        self.assertTrue(app.screen()[0].startswith("IMPOSTAZIONI"))
+        app.key("1")                                         # still works from here
+        self.assertEqual(app.settings.saver_after, 600)
+        app.key("ANNUL")
+        self.assertEqual(app.screen()[0], "ITOMItel".center(80))
+
+    def test_zero_opens_the_tenth_entry_credits(self):
+        app = App(FakeShop())
+        app.key("0")
+        self.assertTrue(app.screen()[0].startswith("CREDITS"))
+
     def test_pressing_guida_again_does_not_stack_screens(self):
         app = App(FakeShop())
         app.key(GUIDA)

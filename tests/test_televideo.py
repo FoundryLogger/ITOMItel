@@ -42,7 +42,7 @@ class FakeTv:
 
 def open_tv(tv=None, width=80):
     app = App(FakeShop(), width=width, televideo=tv or FakeTv(), loading_delay=5)
-    app.key("7")
+    app.key("8")
     return app
 
 
@@ -149,7 +149,7 @@ class ScreenTests(unittest.TestCase):
 
     def test_network_down_shows_a_message_instead_of_crashing(self):
         app = App(FakeShop(), televideo=FakeTv(fail=True), loading_delay=5)
-        app.key("7")
+        app.key("8")
         self.assertIn("Televideo non raggiungibile", "\n".join(app.screen()))
         app.key("INDICE")
         self.assertEqual(app.screen()[0], "ITOMItel".center(80))

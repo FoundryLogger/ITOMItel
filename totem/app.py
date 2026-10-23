@@ -41,21 +41,21 @@ WP_SOURCES = {
 
 # (label, kind, argument) for the shortcuts on the home screen.
 HOME_ITEMS = [
-    ("Sfoglia le categorie", "categories", None),
-    ("Novita'", "new", None),
+    ("Sfoglia Catalogo", "categories", None),
+    ("Novità", "new", None),
     ("Bestseller", "collection", "bestseller"),
     ("In offerta", "collection", "in-offerta"),
     ("Cerca un prodotto", "search", None),
-    ("Credits", "credits", None),
+    ("Storie di EPIC", "stories", None),
+    ("Guide Nerdvana", "nerdvana", None),
     ("Televideo RAI", "televideo", None),
-    ("Storie EPIC", "stories", None),
-    ("Nerdvana Guides", "nerdvana", None),
+    ("Impostazioni", "settings", None),
+    ("Credits", "credits", None),
 ]
 
 # Shorter names for the 40-column menu, where two columns have to fit side by side.
-SHORT_LABELS = {"categories": "Categorie", "search": "Cerca", "televideo": "Televideo",
-                "collection": None, "new": None, "credits": None, "stories": None,
-                "nerdvana": "Nerdvana"}
+SHORT_LABELS = {"categories": "Catalogo", "search": "Cerca", "stories": "Storie EPIC",
+                "nerdvana": "Nerdvana", "televideo": "Televideo", "settings": "Impostaz."}
 
 CREDITS_TEXT = """\
 ITOMItel è un progetto creato da ITOMI.studio con l'ausilio di Claude Code. La parte hardware è basata su un Raspberry Pi collegato via porta seriale a un terminale Videotel SIP Philips HCS 80/08 (Videotex/Minitel).
@@ -177,7 +177,7 @@ class Home(View):
         wide = self.w >= 80
         menu = []
         for i, (label, kind, _) in enumerate(self.items, 1):
-            menu.append(f"{i}  {label if wide else (SHORT_LABELS.get(kind) or label)}")
+            menu.append(f"{i % 10}  {label if wide else (SHORT_LABELS.get(kind) or label)}")
         half = (len(menu) + 1) // 2
         left, right = menu[:half], menu[half:]
         wl, gap = max(map(len, left)), 8 if wide else 3
@@ -194,8 +194,9 @@ class Home(View):
                       keys=keys.ljust(self.w - len(STORE_DOMAIN)) + STORE_DOMAIN)
 
     def on_key(self, k):
-        if k.isdigit() and 1 <= int(k) <= len(self.items):
-            label, kind, arg = self.items[int(k) - 1]
+        # 1..9 choose the first nine entries, 0 the tenth (the keypad of a phone)
+        if k.isdigit() and (int(k) - 1) % 10 < len(self.items):
+            label, kind, arg = self.items[(int(k) - 1) % 10]
             app = self.app
             if kind == "categories":
                 app.push(app.slow(label, lambda: CategoryList(app)))
@@ -210,6 +211,8 @@ class Home(View):
                 self.app.push(Search(self.app))
             elif kind == "credits":
                 self.app.push(Credits(self.app))
+            elif kind == "settings":
+                self.app.push(SettingsView(self.app))
             elif kind == "televideo":
                 app.push(app.slow(label, lambda: Televideo(app)))
             elif kind in WP_SOURCES:

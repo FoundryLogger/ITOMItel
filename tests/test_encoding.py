@@ -98,7 +98,7 @@ class AsciiLayoutTests(unittest.TestCase):
         app.key("SEGUENTE")
         out.append(app.screen())
         app.key("INDICE")
-        app.key("6")                            # credits
+        app.key("0")                            # credits
         out.append(app.screen())
         app.key("SEGUENTE")
         out.append(app.screen())
@@ -127,7 +127,7 @@ class TerminalOutputTests(unittest.TestCase):
         self.addCleanup(text.set_ascii_only, False)
         app = App(FakeShop())
         shots = [app.screen()]
-        for key in ("2", "1", "SEGUENTE", "INDICE", "6", "SEGUENTE", "ANNUL", "5", "c", "i", "INDICE"):
+        for key in ("2", "1", "SEGUENTE", "INDICE", "0", "SEGUENTE", "ANNUL", "5", "c", "i", "INDICE"):
             app.key(key)
             shots.append(app.screen())
         self.shots = shots

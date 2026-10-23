@@ -57,14 +57,14 @@ class WebTests(unittest.TestCase):
         self.assertEqual(len(first["rows"]), 24)
         self.assertEqual({len(r) for r in first["rows"]}, {80})
         self.assertFalse(first["busy"])
-        credits = self.key("6")
+        credits = self.key("0")
         self.assertTrue(credits["rows"][0].startswith("CREDITS"))
         back = self.key("ANNUL")
         self.assertEqual(back["rows"][0], "ITOMItel".center(80))
 
     def test_width_40_is_its_own_session(self):
         self.start(FakeShop())
-        self.key("6", width=80)
+        self.key("0", width=80)
         narrow = json.loads(self.get("/api/screen?sid=t&width=40"))
         self.assertEqual({len(r) for r in narrow["rows"]}, {40})
         self.assertEqual(narrow["rows"][0], "ITOMItel".center(40))

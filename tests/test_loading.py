@@ -23,7 +23,7 @@ class SlowShop:
 
 
 def open_new(app):
-    app.key("2")  # "Novita'" on the home screen
+    app.key("2")  # "Novità" on the home screen
 
 
 class LoadingScreenTests(unittest.TestCase):
@@ -49,7 +49,7 @@ class SlowFetchTests(unittest.TestCase):
         open_new(app)
         self.assertEqual(len(shown), 1)
         self.assertIn("Caricamento in corso...", "\n".join(shown[0]))
-        self.assertIn("Novita'", "\n".join(shown[0]))
+        self.assertIn("Novità", "\n".join(shown[0]))
         self.assertIn("Nessun prodotto", "\n".join(app.screen()))  # result is in place
 
     def test_fast_fetch_never_shows_it(self):

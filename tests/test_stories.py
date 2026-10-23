@@ -135,7 +135,7 @@ class ScreenTests(unittest.TestCase):
     def open_stories(self, width=80, client=None):
         app = App(FakeShop(), width=width, stories=client or epic(fake_fetch()),
                   loading_delay=5)
-        app.key("8")
+        app.key("6")
         return app
 
     def test_the_list_shows_titles_and_dates_and_the_source(self):
@@ -207,7 +207,7 @@ class ScreenTests(unittest.TestCase):
     def test_the_home_menu_has_the_entry_on_both_widths(self):
         for width in (80, 40):
             home = "\n".join(App(FakeShop(), width=width).screen())
-            self.assertIn("8  Storie EPIC", home)
+            self.assertIn("6  Storie di EPIC" if width == 80 else "6  Storie EPIC", home)
 
 
 # ---- a site where the reader first picks a category (Nerdvana: one per city) ----
@@ -243,7 +243,7 @@ def nerdvana():
 class NerdvanaTests(unittest.TestCase):
     def open_menu(self, width=80):
         app = App(FakeShop(), width=width, nerdvana=nerdvana(), loading_delay=5)
-        app.key("9")
+        app.key("7")
         return app
 
     def test_categories_skip_empty_ones_and_are_sorted_a_z_with_clean_names(self):
@@ -299,7 +299,7 @@ class NerdvanaTests(unittest.TestCase):
     def test_the_other_story_source_is_not_affected(self):
         app = App(FakeShop(), nerdvana=nerdvana(),
                   stories=epic(fake_fetch()), loading_delay=5)
-        app.key("8")
+        app.key("6")
         self.assertTrue(app.screen()[0].startswith("STORIE EPIC"))     # straight to the articles, with dates
         self.assertTrue(any(r.rstrip().endswith("06/03/26") for r in app.screen()))
 
@@ -318,8 +318,8 @@ class NerdvanaTests(unittest.TestCase):
                     self.assertTrue(row.isascii(), row)
 
     def test_home_menu_on_both_widths(self):
-        self.assertIn("9  Nerdvana Guides", "\n".join(App(FakeShop()).screen()))
-        self.assertIn("9  Nerdvana", "\n".join(App(FakeShop(), width=40).screen()))
+        self.assertIn("7  Guide Nerdvana", "\n".join(App(FakeShop()).screen()))
+        self.assertIn("7  Nerdvana", "\n".join(App(FakeShop(), width=40).screen()))
 
 
 if __name__ == "__main__":

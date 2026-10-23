@@ -30,12 +30,10 @@ class LogoTests(unittest.TestCase):
         menu_rows = screen[15:20]                    # two columns: items 1-5 and 6-9
         self.assertTrue(all(r.startswith(" ") and r.strip() for r in menu_rows))
         text = "\n".join(screen)
-        self.assertIn("1  Sfoglia le categorie", text)
-        self.assertIn("5  Cerca un prodotto", text)
-        self.assertIn("6  Credits", text)
-        self.assertIn("7  Televideo RAI", text)
-        self.assertIn("8  Storie EPIC", text)
-        self.assertIn("9  Nerdvana Guides", text)
+        self.assertIn("1  Sfoglia Catalogo", text)
+        for label in ("5  Cerca un prodotto", "6  Storie di EPIC", "7  Guide Nerdvana", "8  Televideo RAI",
+                      "9  Impostazioni", "0  Credits"):
+            self.assertIn(label, text)
 
     def test_home_40_stacks_logo_over_menu(self):
         screen = App(FakeShop(), width=40).screen()
@@ -88,7 +86,7 @@ class HeaderLayoutTests(unittest.TestCase):
 class CreditsTests(unittest.TestCase):
     def _open(self, width):
         app = App(FakeShop(), width=width)
-        app.key("6")
+        app.key("0")
         return app
 
     def test_credits_has_the_full_text_on_80_columns(self):
@@ -123,7 +121,7 @@ class CreditsTests(unittest.TestCase):
     def test_technical_sheet_is_page_two_and_uses_the_real_line_settings(self):
         app = App(FakeShop())
         app.line_info = "1200 baud, 7 bit, parità pari, 1 stop"
-        app.key("6")
+        app.key("0")
         app.key("SEGUENTE")
         screen = app.screen()
         text = " ".join(" ".join(screen).split())
@@ -141,7 +139,7 @@ class CreditsTests(unittest.TestCase):
 
     def test_no_line_row_when_the_speed_is_not_known(self):
         app = App(FakeShop())          # console and web emulator have no serial line
-        app.key("6")
+        app.key("0")
         app.key("SEGUENTE")
         self.assertNotIn("Linea seriale", "\n".join(app.screen()))
 

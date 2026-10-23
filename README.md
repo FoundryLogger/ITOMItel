@@ -15,6 +15,13 @@ mostra in schermate a 80 colonne × 24 righe.
 Solo libreria standard di Python 3.9+; `pyserial` serve solo per il collegamento
 al terminale vero (`pip install -r requirements.txt`).
 
+## Il menu principale
+
+Due colonne: a sinistra **1** Sfoglia Catalogo, **2** Novità, **3** Bestseller, **4** In offerta,
+**5** Cerca un prodotto; a destra **6** Storie di EPIC, **7** Guide Nerdvana, **8** Televideo RAI,
+**9** Impostazioni, **0** Credits (la decima voce è lo zero, come sul tastierino di un telefono).
+Voci e ordine sono in `HOME_ITEMS` in `totem/app.py`.
+
 ## Provarlo senza hardware
 
 ```bash
@@ -80,14 +87,14 @@ Se i tasti dovessero perdere colpi, aggiungere un resistore da 10 kΩ tra pin 10
 Durante i test erano usati 1 kΩ in serie su entrambi i fili. Con un partitore a resistori bassi
 (es. 1 kΩ + 2 kΩ) le linee crollano: evitarlo.
 
-## Storie EPIC e Nerdvana Guides
+## Storie di EPIC e Guide Nerdvana
 
 Due siti WordPress di ITOMI letti con l'API pubblica (`/wp-json/wp/v2/…`), sempre con la fonte
 indicata nella schermata:
 
-- **Voce 8, Storie EPIC** (whatisepic.it): gli articoli della categoria *Storie*, dal più recente,
+- **Voce 6, Storie di EPIC** (whatisepic.it): gli articoli della categoria *Storie*, dal più recente,
   9 per pagina con la data; si apre un articolo e si legge a pagine (Seguente/Precedente).
-- **Voce 9, Nerdvana Guides** (nerdvanaguides.com): prima si sceglie la **città** (Londra, Los Angeles,
+- **Voce 7, Guide Nerdvana** (nerdvanaguides.com): prima si sceglie la **città** (Londra, Los Angeles,
   New York, Osaka, Tokyo, con il numero di guide), poi la guida in **ordine alfabetico** (la data di
   pubblicazione non significa niente qui, quindi non è mostrata) e infine si legge.
 
@@ -100,7 +107,7 @@ scegliere la categoria, ordine, date sì/no, titoli) e si aggiunge una voce a `H
 
 ## Televideo RAI
 
-Voce **7** del menu. Mostra le pagine di RAI Televideo nella versione "solo testo" che RAI pubblica
+Voce **8** del menu. Mostra le pagine di RAI Televideo nella versione "solo testo" che RAI pubblica
 sul web (`servizitelevideo.rai.it`, 40 colonne, centrate sullo schermo a 80). Si digitano **3 cifre**
 (100-899) e la pagina si apre al terzo numero, come con il telecomando; **Seguente/Precedente**
 scorrono la pagina se è più lunga dello schermo, poi passano alla sottopagina e infine alla pagina
@@ -128,7 +135,7 @@ c'è il menu "Screensaver" e il pulsante "Prova screensaver". Il codice è in `t
 
 ## Impostazioni
 
-Dal Minitel: **Guida → 1 (Impostazioni)**. Ogni numero porta l'impostazione al valore successivo
+Dal Minitel: voce **9** del menu, oppure **Guida → 1**. Ogni numero porta l'impostazione al valore successivo
 (in giro, poi ricomincia): 1 screensaver dopo 1 / 5 / 10 minuti o mai, 2 ritorno alla home dopo
 1 / 2 / 5 minuti o mai, 3 carattere di riempimento (`# @ X * + O`), 4 durata dello schermo pieno fermo (15 s,
 30 s, 1 min, 2 min). I cambi valgono subito e restano salvati in `settings.json` (nella cartella del
