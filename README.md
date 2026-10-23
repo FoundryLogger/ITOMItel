@@ -1,5 +1,11 @@
 # ITOMItel
 
+> **In English:** ITOMItel turns a vintage Philips HCS 80/08 Videotel/Minitel-style terminal
+> into a kiosk that browses and searches a Shopify store's public catalogue. A Raspberry Pi
+> talks to the terminal over its serial port (three wires, no adapter) and renders every screen
+> as 80x24 ASCII with ANSI cursor codes at 1200 baud. Pure Python 3 standard library (plus
+> `pyserial`), with a browser emulator and tests that need no hardware. MIT licensed.
+
 Totem informativo con il catalogo di ITOMI.shop su un terminale Videotel
 **Philips HCS 80/08** (SIP), collegato a un Raspberry Pi via porta seriale.
 Il programma legge in tempo reale il catalogo pubblico del negozio Shopify e lo
@@ -106,3 +112,28 @@ in `totem/app.py`.
 
 - Caratteri accentati sul terminale vero (ora si scrivono come `e'`, `EUR`).
 - Oscurare lo schermo dopo un po' di inattività per risparmiare il tubo catodico.
+
+## Usarlo con un altro negozio Shopify
+
+Basta cambiare l'indirizzo: `python3 -m totem serial --store https://IL-TUO-NEGOZIO.myshopify.com ...`
+(vale anche per `python3 -m totem` e `python3 -m totem web`). Funziona con qualunque negozio che
+esponga i JSON pubblici `products.json` e `collections.json` (la maggior parte dei negozi non
+protetti da password). Testi, logo e menu si cambiano in `totem/app.py` e `totem/logo.py`.
+
+## Contribuire
+
+Segnalazioni e proposte sono benvenute: apri una issue o una pull request. Prima di inviare,
+fai girare i test (`python3 -m unittest discover tests`): non richiedono hardware né rete.
+
+## Licenza
+
+Il **codice** è rilasciato con licenza **MIT** (vedi [LICENSE](LICENSE)): puoi usarlo, modificarlo e
+ridistribuirlo, anche per scopi commerciali, mantenendo l'indicazione di copyright.
+
+Il **nome ITOMI/ITOMItel e il logo** appartengono a ITOMI.studio e non sono coperti dalla licenza
+MIT: se riusi il progetto per un altro negozio, sostituisci nome e logo con i tuoi.
+
+Componenti di terzi: [pyserial](https://github.com/pyserial/pyserial) (licenza BSD-3-Clause,
+solo per il collegamento al terminale); il tipo di carattere non è incluso:
+l'emulatore nel browser carica [VT323](https://fonts.google.com/specimen/VT323) (SIL Open Font
+License) da Google Fonts e, se non è raggiungibile, usa un carattere monospazio di sistema.
