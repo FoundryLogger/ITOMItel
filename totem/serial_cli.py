@@ -114,6 +114,16 @@ def cmd_probe(args) -> None:
           "e' quello da usare con --profile.")
 
 
+def cmd_scrolltest(args) -> None:
+    """Try insert/delete-line scrolling on the real terminal (see totem/scrolltest.py)."""
+    from . import scrolltest
+    port = _open(args)
+    names = [t[0] for t in scrolltest.TESTS if not args.only or t[0] == args.only.upper()]
+    print(f"Prove {', '.join(names)} sul Minitel: {args.pause:.0f} s ciascuna. Guarda lo schermo.")
+    scrolltest.run(port, args.pause, args.only)
+    print("Finito.")
+
+
 def cmd_serial(args) -> None:
     set_ascii_only(True)   # accents and euro are spelled out before the layout is computed
     shop = Shop(args.store, cache_dir=args.cache)

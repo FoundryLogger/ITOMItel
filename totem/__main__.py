@@ -45,6 +45,9 @@ def serial_main(cmd: str) -> None:
     if cmd == "learn":
         ap.add_argument("names", nargs="*", metavar="TASTO",
                         help="learn only these keys, e.g. DESTRA SINISTRA (default: all)")
+    if cmd == "scrolltest":
+        ap.add_argument("--pause", type=float, default=20.0, help="seconds each test stays on screen")
+        ap.add_argument("--only", help="run just one test (A, B, C or D)")
     if cmd == "serial":
         ap.add_argument("--store", default="https://itomi.myshopify.com")
         ap.add_argument("--cache", default=str(Path(__file__).parent.parent / "cache"))
@@ -108,7 +111,7 @@ def web_main() -> None:
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "web":
         return web_main()
-    if len(sys.argv) > 1 and sys.argv[1] in ("serial", "monitor", "learn", "probe"):
+    if len(sys.argv) > 1 and sys.argv[1] in ("serial", "monitor", "learn", "probe", "scrolltest"):
         return serial_main(sys.argv[1])
     ap = argparse.ArgumentParser(prog="totem")
     ap.add_argument("--store", default="https://itomi.myshopify.com")
