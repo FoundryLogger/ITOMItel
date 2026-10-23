@@ -93,7 +93,8 @@ Due siti WordPress di ITOMI letti con l'API pubblica (`/wp-json/wp/v2/…`), sem
 indicata nella schermata:
 
 - **Voce 6, Storie di EPIC** (whatisepic.it): gli articoli della categoria *Storie*, dal più recente,
-  9 per pagina con la data; si apre un articolo e si legge a pagine (Seguente/Precedente).
+  9 per pagina con la data; si apre un articolo e si legge a pagine (Seguente/Precedente). Sotto il titolo
+  e la data compare l'autore ("di Nome Cognome"), preso dal nome che WordPress gli dà.
 - **Voce 7, Guide Nerdvana** (nerdvanaguides.com): prima si sceglie la **città** (Londra, Los Angeles,
   New York, Osaka, Tokyo, con il numero di guide), poi la guida in **ordine alfabetico** (la data di
   pubblicazione non significa niente qui, quindi non è mostrata) e infine si legge.

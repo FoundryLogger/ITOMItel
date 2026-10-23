@@ -31,6 +31,7 @@ class Post:
     title: str
     link: str
     text: str = ""
+    author: str = ""      # the name WordPress gives the author (only known for a whole article)
 
     @property
     def short_date(self) -> str:
@@ -53,12 +54,19 @@ class Category:
     count: int
 
 
+def _author(d: dict) -> str:
+    """The author's name from an answer fetched with _embed=author, or ''."""
+    authors = d.get("_embedded", {}).get("author", [])
+    return html_to_text(authors[0].get("name", "")) if authors and isinstance(authors[0], dict) else ""
+
+
 def _post(d: dict) -> Post:
     return Post(
         id=d["id"], date=d.get("date", "1970-01-01T00:00:00"),
         title=html_to_text(d.get("title", {}).get("rendered", "")),
         link=d.get("link", ""),
         text=html_to_text(d.get("content", {}).get("rendered", ""), headings=True),
+        author=_author(d),
     )
 
 
@@ -72,10 +80,10 @@ class WordPressClient:
                  cache_dir: str | Path | None = None, ttl: float = 600.0, timeout: float = 15.0,
                  fetch=None, sort: str = "date", show_dates: bool = True,
                  list_title: str = "STORIE", detail_title: str = "STORIA",
-                 index_name: str = "sito"):
+                 index_name: str = "sito", show_author: bool = False):
         self.site = site.rstrip("/")
         self.category = category
-        self.sort, self.show_dates = sort, show_dates
+        self.sort, self.show_dates, self.show_author = sort, show_dates, show_author
         self.list_title, self.detail_title = list_title, detail_title
         self.index_name = index_name         # how the 0 key names the site's index: "0=indice <name>"
         self.cache_dir = Path(cache_dir) if cache_dir else None
@@ -156,5 +164,5 @@ class WordPressClient:
 
     def article(self, post_id: int) -> Post | None:
         """One article with its text."""
-        d = self._json(f"/wp-json/wp/v2/posts/{post_id}?_fields=id,date,title,link,content")
+        d = self._json(f"/wp-json/wp/v2/posts/{post_id}?_embed=author&_fields=id,date,title,link,content,_embedded")
         return _post(d) if d else None

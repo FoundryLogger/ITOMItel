@@ -10,13 +10,16 @@ from totem.blog import Post, WordPressClient
 from totem.text import html_to_text
 
 
-def rest_post(pid, title, date, content="", link=None):
-    return {"id": pid, "date": date, "title": {"rendered": title},
+def rest_post(pid, title, date, content="", link=None, author=None):
+    post = {"id": pid, "date": date, "title": {"rendered": title},
             "link": link or f"https://example.org/{pid}/",
             "content": {"rendered": content}}
+    if author:                                       # what _embed=author adds
+        post["_embedded"] = {"author": [{"id": 5, "name": author}]}
+    return post
 
 
-POSTS = [rest_post(3, "Perch&eacute; l&#8217;infinito &#8211; parte tre", "2026-03-06T10:00:00",
+POSTS = [rest_post(3, "Perch&eacute; l&#8217;infinito &#8211; parte tre", "2026-03-06T10:00:00", author="Fj&oacute;na Cakalli", content=
                    "<h2>Un titolo<br>su due righe</h2><p>Primo paragrafo, &egrave; lungo " + "parola " * 260 +
                    "</p><ul><li>uno</li><li>due</li></ul><iframe src='x'>video</iframe>"
                    "<audio controls><source src='a.mp3'></audio><p>Fine.</p>"),
@@ -40,7 +43,8 @@ def fake_fetch(calls=None):
 def epic(fetch, category="storie"):
     """A client set up like Storie EPIC (one category, newest first, with dates)."""
     return WordPressClient("https://example.org", category, fetch=fetch,
-                           list_title="STORIE EPIC", detail_title="STORIA", index_name="Storie")
+                           list_title="STORIE EPIC", detail_title="STORIA", index_name="Storie",
+                           show_author=True)
 
 
 class FakeShop:
@@ -421,6 +425,53 @@ class IndexKeyTests(unittest.TestCase):
         app = App(FakeShop())
         app.key("GUIDA")
         self.assertIn("torna all'indice", "\n".join(app.screen()))
+
+
+# ---- the author's name, after the title and the date (Storie di EPIC only) ----
+
+class AuthorTests(unittest.TestCase):
+    def open_article(self, client, key="1"):
+        app = App(FakeShop(), stories=client, nerdvana=nerdvana(), loading_delay=5)
+        app.key("6")
+        app.key(key)
+        return app
+
+    def test_the_article_carries_the_name_wordpress_gives_the_author(self):
+        art = epic(fake_fetch()).article(3)
+        self.assertEqual(art.author, "Fjóna Cakalli")
+        self.assertEqual(epic(fake_fetch()).article(2).author, "")          # no author in the answer
+
+    def test_epic_shows_di_name_after_the_title_and_the_date_and_before_the_text(self):
+        app = self.open_article(epic(fake_fetch()))
+        lines = [r.strip() for r in app.screen()[2:21]]
+        self.assertEqual(lines[0], "PERCHÉ L'INFINITO - PARTE TRE")
+        self.assertEqual(lines[1], "6 marzo 2026")
+        self.assertEqual(lines[2], "di Fjona Cakalli")                 # ó is not on the terminal: plain o
+        self.assertEqual(lines[3], "")
+        self.assertEqual(lines[4], "UN TITOLO")
+
+    def test_an_article_without_an_author_has_no_di_line(self):
+        app = self.open_article(epic(fake_fetch()), key="2")                # "Secondo articolo"
+        lines = [r.strip() for r in app.screen()[2:8]]
+        self.assertEqual(lines[:3], ["SECONDO ARTICOLO", "3 febbraio 2026", ""])
+        self.assertNotIn("di ", " ".join(lines[:3]))
+
+    def test_nerdvana_does_not_show_authors_even_if_the_api_sends_one(self):
+        GUIDES[54][0]["_embedded"] = {"author": [{"name": "Qualcuno"}]}
+        self.addCleanup(GUIDES[54][0].pop, "_embedded")
+        app = App(FakeShop(), nerdvana=nerdvana(), loading_delay=5)
+        app.key("7"); app.key("1"); app.key("1")
+        self.assertNotIn("Qualcuno", "\n".join(app.screen()))
+
+    def test_the_line_keeps_the_layout_exact_in_ascii_mode(self):
+        text.set_ascii_only(True)
+        self.addCleanup(text.set_ascii_only, False)
+        for width in (80, 40):
+            app = App(FakeShop(), width=width, stories=epic(fake_fetch()), loading_delay=5)
+            app.key("6"); app.key("1")
+            screen = app.screen()
+            self.assertIn("di Fjona Cakalli", "\n".join(screen))           # accent spelled out
+            self.assertTrue(all(len(r) == width and r.isascii() for r in screen))
 
 
 if __name__ == "__main__":

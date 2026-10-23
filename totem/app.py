@@ -37,7 +37,7 @@ STORE_DOMAIN = "itomi.shop"
 WP_SOURCES = {
     "stories": dict(site="https://www.whatisepic.it", category="storie", sort="date",
                     show_dates=True, list_title="STORIE EPIC", detail_title="STORIA",
-                    index_name="Storie"),
+                    index_name="Storie", show_author=True),
     "nerdvana": dict(site="https://nerdvanaguides.com", category=None, sort="title",
                      show_dates=False, list_title="NERDVANA", detail_title="GUIDA",
                      index_name="Nerdvana"),
@@ -504,7 +504,10 @@ class StoryDetail(Paged):
         article = client.article(post.id)
         w = self.w
         self.lines = [("  " + l).rstrip() for l in wrap(sanitize(post.title.upper()), w - 4)]
-        self.lines += (["  " + post.long_date, ""] if client.show_dates else [""])
+        self.lines += ["  " + post.long_date] if client.show_dates else []
+        if client.show_author and article and article.author:      # "di Nome Cognome", after title and date
+            self.lines += ["  di " + sanitize(article.author)]
+        self.lines += [""]
         if article and article.text:
             self.lines += [("  " + l).rstrip() for l in wrap(sanitize(article.text), w - 4)]
         else:
