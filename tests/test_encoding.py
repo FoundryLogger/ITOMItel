@@ -18,7 +18,6 @@ class Ansi:
         self.grid = [[" "] * w for _ in range(h)]
         self.r = self.c = 0
         self.overflow = False
-        self.top, self.bottom = 0, h - 1            # scroll region (rows, 0-based, inclusive)
 
     def feed(self, data: bytes):
         i = 0
@@ -26,7 +25,7 @@ class Ansi:
             b = data[i]
             if b == 0x1B and data[i + 1:i + 2] == b"[":
                 j = i + 2
-                while chr(data[j]) not in "HJKmLMr":
+                while chr(data[j]) not in "HJKm":
                     j += 1
                 params, cmd = data[i + 2:j].decode(), chr(data[j])
                 if cmd == "J" and params == "2":
@@ -37,18 +36,6 @@ class Ansi:
                 elif cmd == "K":
                     for k in range(self.c, self.w):
                         self.grid[self.r][k] = " "
-                elif cmd == "r":                      # scroll region, "" resets it
-                    parts = [int(x) for x in params.split(";")] if params else [1, self.h]
-                    self.top, self.bottom = parts[0] - 1, parts[1] - 1
-                elif cmd in "LM" and self.top <= self.r <= self.bottom:
-                    n = int(params or 1)
-                    for _ in range(n):
-                        if cmd == "M":                # delete the line: the ones below move up
-                            del self.grid[self.r]
-                            self.grid.insert(self.bottom, [" "] * self.w)
-                        else:                         # insert a blank line: the ones below move down
-                            del self.grid[self.bottom]
-                            self.grid.insert(self.r, [" "] * self.w)
                 i = j + 1
             elif b == 0x0D:
                 self.c, i = 0, i + 1
