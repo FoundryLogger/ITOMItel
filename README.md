@@ -38,6 +38,15 @@ Voci e ordine sono in `HOME_ITEMS` in `totem/app.py`.
 | **Invio** | conferma la ricerca |
 | **0** | nelle pagine di Storie e Guide: torna all'indice del sito |
 
+**Mentre il Minitel sta ricevendo una schermata** (a 1200 baud ci vogliono 7-9 secondi) **un comando già
+noto la interrompe** e parte subito la schermata del comando nuovo, disegnata per intero da capo (sul
+terminale c'è una schermata a metà, quindi non si può ridisegnare solo la differenza). I byte sconosciuti
+(rumore, tasti non insegnati) non interrompono nulla. Per renderlo possibile il disegno parte a pezzi di
+circa 0,2 secondi, mai spezzati dentro una sequenza di controllo, e tra un pezzo e l'altro si controlla la
+porta (`KeyWatcher` e `SerialTerminal.draw` in `totem/terminal.py`). Anche lo screensaver e la schermata
+di caricamento si interrompono, e un tasto premuto durante il caricamento viene eseguito appena i dati sono
+arrivati. Premere più comandi di seguito li esegue tutti, nell'ordine, e disegna solo l'ultima schermata.
+
 Le frecce su e giù non fanno nulla. Le schermate di lettura vanno a pagine intere: lo scorrimento per
 riga, che farebbe ridisegnare tutto lo schermo a ogni pressione (oltre 10 secondi a 1200 baud), è stato
 provato con le sequenze di cancella/inserisci riga del terminale e scartato.

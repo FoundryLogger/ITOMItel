@@ -18,7 +18,7 @@ from .saver import Screensaver
 from .settings import Settings
 from .shop import Shop
 from .text import set_ascii_only
-from .terminal import (KEY_NAMES, KeyDecoder, PROFILES, SerialTerminal, load_keymap,
+from .terminal import (KEY_NAMES, KeyDecoder, KeyWatcher, PROFILES, SerialTerminal, load_keymap,
                        open_port, save_keymap, to_ascii)
 
 
@@ -121,20 +121,24 @@ def cmd_serial(args) -> None:
                         ink=args.saver_ink)
     app = App(shop, width=args.width, loading_delay=args.loading_delay, settings=settings)
     term = SerialTerminal(_open(args), args.profile, 0, args.baud)
-    app.on_loading = lambda rows: term.try_draw(rows)
+    decoder = KeyDecoder(load_keymap(args.keymap))
+    watcher = KeyWatcher(term.port, decoder,
+                         log=lambda seq: print(f"[sequenza non riconosciuta: {seq.hex(' ')}]", file=sys.stderr))
+    interrupted = watcher.interrupted     # asked between the pieces of every drawing
+    app.on_loading = lambda rows: term.try_draw(rows, abort=interrupted)
     parity = {"E": "pari", "O": "dispari", "N": "nessuna"}[args.parity]
     app.line_info = f"{args.baud} baud, {args.bits} bit, parità {parity}, {args.stop} stop"
-    decoder = KeyDecoder(load_keymap(args.keymap))
     print(f"Totem attivo su {args.port}, profilo {args.profile}. Ctrl+C per uscire.",
           file=sys.stderr)
-    secs = term.try_draw(app.screen(), full=True)
+    secs = term.try_draw(app.screen(), full=True, abort=interrupted)
     print(f"[disegno schermata: ~{secs:.1f}s]", file=sys.stderr)
     last = time.monotonic()
     saver = Screensaver(args.width, settings.saver_after, settings.ink, hold=settings.hold)
     try:
         while True:
             data = term.read()
-            keys = decoder.feed(data) if data else decoder.flush()
+            keys = watcher.take()                # first the commands that came during a drawing
+            keys += decoder.feed(data) if data else decoder.flush()
             for seq in decoder.take_unknown():
                 print(f"[sequenza non riconosciuta: {seq.hex(' ')}]", file=sys.stderr)
             now = time.monotonic()
@@ -144,7 +148,7 @@ def cmd_serial(args) -> None:
                 # the screen that was showing.
                 print("[screensaver: sveglia]", file=sys.stderr)
                 last = now
-                secs = term.try_draw(app.screen(), full=True)
+                secs = term.try_draw(app.screen(), full=True, abort=interrupted)
                 print(f"[disegno: ~{secs:.1f}s]", file=sys.stderr)
                 continue
             idle = settings.idle_after > 0 and now - last > settings.idle_after
@@ -153,7 +157,7 @@ def cmd_serial(args) -> None:
             if not keys:
                 frame = saver.tick(now, last)
                 if frame is not None:
-                    term.try_draw(frame)
+                    term.try_draw(frame, abort=interrupted)
                 continue
             last = now
             for k in keys:
@@ -161,7 +165,7 @@ def cmd_serial(args) -> None:
                 app.key(k)
             # Ripetiz. redraws everything: handy if the terminal was just switched on
             # or the screen got scrambled.
-            secs = term.try_draw(app.screen(), full=args.full or RIPETIZ in keys)
+            secs = term.try_draw(app.screen(), full=args.full or RIPETIZ in keys, abort=interrupted)
             print(f"[disegno: ~{secs:.1f}s]", file=sys.stderr)
     except KeyboardInterrupt:
         pass

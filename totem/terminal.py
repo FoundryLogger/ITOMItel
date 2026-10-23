@@ -217,8 +217,64 @@ def save_keymap(path: str | Path, keymap: dict[str, list[bytes]]) -> None:
         {k: [s.hex() for s in v] for k, v in keymap.items()}, indent=2))
 
 
+def chunks(data: bytes, size: int) -> list[bytes]:
+    """Cut data into pieces of about `size` bytes, never inside an escape sequence.
+
+    A drawing can be stopped between two pieces; stopping halfway through a cursor
+    jump would leave the terminal waiting for the rest of it. Joined together the
+    pieces are exactly `data`.
+    """
+    out, start, i, n = [], 0, 0, len(data)
+    while i < n:
+        if data[i] == 0x1B:                          # skip a whole escape sequence
+            j = i + 2
+            if i + 1 < n and data[i + 1] == 0x5B:     # CSI: ESC [ parameters final-byte
+                while j < n and not 0x40 <= data[j] <= 0x7E:
+                    j += 1
+                j += 1
+            i = min(j, n)
+        else:
+            i += 1
+        if i - start >= size:
+            out.append(data[start:i])
+            start = i
+    if start < n:
+        out.append(data[start:])
+    return out
+
+
+class KeyWatcher:
+    """Listens to the port while a screen is being drawn.
+
+    interrupted() is what draw() asks between two pieces: it reads whatever has arrived,
+    decodes it and says True as soon as a command we know is waiting. Those commands are
+    kept in `pending` for the main loop; bytes we don't understand (noise, keys nobody has
+    taught us) never interrupt anything.
+    """
+
+    def __init__(self, port, decoder: "KeyDecoder", log=None):
+        self.port, self.decoder, self.log = port, decoder, log
+        self.pending: list[str] = []
+
+    def interrupted(self) -> bool:
+        waiting = getattr(self.port, "in_waiting", 0)
+        if waiting:
+            self.pending.extend(self.decoder.feed(self.port.read(waiting)))
+            if self.log:
+                for seq in self.decoder.take_unknown():
+                    self.log(seq)
+        return bool(self.pending)
+
+    def take(self) -> list[str]:
+        """The commands that arrived during a drawing (and forget them)."""
+        out, self.pending = self.pending, []
+        return out
+
+
 class SerialTerminal:
     """Thin wrapper over a pyserial port (or anything with read/write)."""
+
+    PIECE_SECONDS = 0.2            # how long one piece of a drawing takes to send
 
     def __init__(self, port, profile: str = "plain", margin: int = 0,
                  baud: int = 1200):
@@ -228,20 +284,38 @@ class SerialTerminal:
         self.baud = baud
         self.prev: list[str] | None = None
 
-    def draw(self, rows: list[str], full: bool = False) -> float:
+    def draw(self, rows: list[str], full: bool = False, abort=None) -> float:
+        """Send the screen. With abort, a function that says whether to stop, the bytes go
+        out in short pieces (about 0.2 s each) and abort() is asked between them: if it says
+        yes the rest is not sent. What is on the terminal is then half a screen, so the
+        next draw is a full redraw. Returns the transmission time of what was sent."""
         data = encode_screen(rows, self.prev, self.profile, self.margin, full)
-        self.port.write(data)
+        if abort is None:
+            self.port.write(data)
+            self.prev = list(rows)
+            return estimate_seconds(data, self.baud)
+        size = max(8, int(self.baud / 10 * self.PIECE_SECONDS))
+        sent = 0
+        for piece in chunks(data, size):
+            if abort():
+                self.prev = None
+                return estimate_seconds(data[:sent], self.baud)
+            self.port.write(piece)
+            drain = getattr(self.port, "flush", None)
+            if drain:
+                drain()                                # wait until it has really gone out
+            sent += len(piece)
         self.prev = list(rows)
         return estimate_seconds(data, self.baud)
 
-    def try_draw(self, rows: list[str], full: bool = False) -> float:
+    def try_draw(self, rows: list[str], full: bool = False, abort=None) -> float:
         """draw() that never raises: a stuck or failing port must not stop the totem.
 
         After a failure the terminal's screen is in an unknown state, so the
         next draw is a full redraw.
         """
         try:
-            return self.draw(rows, full)
+            return self.draw(rows, full, abort)
         except Exception as e:  # serial timeouts, device errors...
             print(f"[errore di scrittura sulla seriale: {type(e).__name__}: {e}]",
                   file=sys.stderr, flush=True)
