@@ -34,9 +34,11 @@ STORE_DOMAIN = "itomi.shop"
 # category to list; None means the reader first picks one (a city, for Nerdvana).
 WP_SOURCES = {
     "stories": dict(site="https://www.whatisepic.it", category="storie", sort="date",
-                    show_dates=True, list_title="STORIE EPIC", detail_title="STORIA"),
+                    show_dates=True, list_title="STORIE EPIC", detail_title="STORIA",
+                    index_name="Storie"),
     "nerdvana": dict(site="https://nerdvanaguides.com", category=None, sort="title",
-                     show_dates=False, list_title="NERDVANA", detail_title="GUIDA"),
+                     show_dates=False, list_title="NERDVANA", detail_title="GUIDA",
+                     index_name="Nerdvana"),
 }
 
 # (label, kind, argument) for the shortcuts on the home screen.
@@ -394,6 +396,14 @@ class ProductDetail(Paged):
                       page=(self.page, self.pages()))
 
 
+def site_keys(w: int, client: WordPressClient, with_zero: bool) -> str:
+    """The key line of the pages of a WordPress site; 0 goes back to the site's index."""
+    zero = f"   0=indice {client.index_name}" if with_zero else ""
+    if w >= 80:
+        return f"Seguente/Precedente=pagine{zero}   Indice=menu"
+    return "Segu/Prec  0=indice  Indice=menu" if with_zero else "Seguente/Precedente=pagine  Indice=menu"
+
+
 def open_source(app, key: str) -> View:
     """The first screen of a WordPress source: the articles of its one category,
     or the list of categories (cities) when the reader has to pick one."""
@@ -404,6 +414,7 @@ def open_source(app, key: str) -> View:
 class CityList(Paged):
     """The categories of a WordPress site (the cities of Nerdvana), with their article counts."""
     per_page = 9
+    is_index = True            # what the 0 key goes back to
 
     def __init__(self, app, client: WordPressClient):
         super().__init__(app)
@@ -421,10 +432,13 @@ class CityList(Paged):
             body.append(f" {i}  {fit(sanitize(c.name), w - 8 - len(count))}".ljust(w - len(count) - 1)
                         + " " + count)
         return render(w, self.client.list_title, body, hint="Premi il numero desiderato",
-                      keys=self.paging_keys(), page=(self.page, self.pages()))
+                      keys=site_keys(w, self.client, with_zero=False), page=(self.page, self.pages()))
 
     def on_key(self, k):
-        if k.isdigit() and k != "0":
+        if k == "0":
+            self.app.go_to_site_index()
+            return True
+        if k.isdigit():
             i = self.page * self.per_page + int(k) - 1
             if i < len(self.items):
                 c, app, client = self.items[i], self.app, self.client
@@ -442,6 +456,9 @@ class StoryList(Paged):
         super().__init__(app)
         self.client, self.title = client, title or client.list_title
         self.items: list[StoryPost] = client.posts(slug)
+        # On a site with one fixed category this list IS the index; on Nerdvana the index
+        # is the list of cities and this is one city's guides.
+        self.is_index = slug is not None and slug == client.category
 
     def total(self):
         return len(self.items)
@@ -460,10 +477,14 @@ class StoryList(Paged):
         return render(w, self.title, body,
                       hint=pick(w, f"Premi il numero desiderato   (fonte: {client.domain})",
                                 "Premi il numero desiderato"),
-                      keys=self.paging_keys(), page=(self.page, self.pages()))
+                      keys=site_keys(w, client, with_zero=not self.is_index),
+                      page=(self.page, self.pages()))
 
     def on_key(self, k):
-        if k.isdigit() and k != "0":
+        if k == "0":
+            self.app.go_to_site_index()
+            return True
+        if k.isdigit():
             i = self.page * self.per_page + int(k) - 1
             if i < len(self.items):
                 post, app, client = self.items[i], self.app, self.client
@@ -495,8 +516,15 @@ class StoryDetail(Paged):
     def screen(self):
         start = self.page * BODY
         return render(self.w, self.client.detail_title, self.lines[start:start + BODY],
-                      hint=f"Fonte: {self.client.domain}", keys=self.paging_keys(),
+                      hint=f"Fonte: {self.client.domain}",
+                      keys=site_keys(self.w, self.client, with_zero=True),
                       page=(self.page, self.pages()))
+
+    def on_key(self, k):
+        if k == "0":
+            self.app.go_to_site_index()
+            return True
+        return super().on_key(k)
 
 
 class Televideo(View):
@@ -630,6 +658,7 @@ HELP = [
     "  Annul.      torna indietro",
     "  Correzione  cancella una lettera",
     "  Ripetiz.    aggiorna lo schermo e i prodotti",
+    "  0           nelle Storie e nelle Guide: torna all'indice",
     "",
     "  Per scegliere premi il numero.",
     "  Per cercare scrivi e premi Invio.",
@@ -710,6 +739,14 @@ class App:
     @property
     def view(self) -> View:
         return self.stack[-1]
+
+    def go_to_site_index(self):
+        """Back to the index of the WordPress site being read: its list of cities, or
+        its list of articles when it has one fixed category, at the first page."""
+        while len(self.stack) > 1 and not getattr(self.view, "is_index", False):
+            self.stack.pop()
+        if hasattr(self.view, "page"):
+            self.view.page = 0
 
     def push(self, view: View):
         self.stack.append(view)

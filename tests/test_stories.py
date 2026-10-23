@@ -40,7 +40,7 @@ def fake_fetch(calls=None):
 def epic(fetch, category="storie"):
     """A client set up like Storie EPIC (one category, newest first, with dates)."""
     return WordPressClient("https://example.org", category, fetch=fetch,
-                           list_title="STORIE EPIC", detail_title="STORIA")
+                           list_title="STORIE EPIC", detail_title="STORIA", index_name="Storie")
 
 
 class FakeShop:
@@ -237,7 +237,8 @@ def nerdvana_fetch(url):
 
 def nerdvana():
     return WordPressClient("https://example.net", None, fetch=nerdvana_fetch, sort="title",
-                           show_dates=False, list_title="NERDVANA", detail_title="GUIDA")
+                           show_dates=False, list_title="NERDVANA", detail_title="GUIDA",
+                           index_name="Nerdvana")
 
 
 class NerdvanaTests(unittest.TestCase):
@@ -320,6 +321,106 @@ class NerdvanaTests(unittest.TestCase):
     def test_home_menu_on_both_widths(self):
         self.assertIn("7  Guide Nerdvana", "\n".join(App(FakeShop()).screen()))
         self.assertIn("7  Nerdvana", "\n".join(App(FakeShop(), width=40).screen()))
+
+
+# ---- the 0 key: back to the index of the site being read ----
+
+BIG = [rest_post(i, f"Storia {i:02d}", f"2026-01-{i:02d}T10:00:00", f"<p>Testo {i}.</p>") for i in range(12, 0, -1)]
+
+
+def big_fetch(url):
+    if "/categories?" in url:
+        return [{"id": 8}]
+    if "/posts/" in url:
+        pid = int(url.split("/posts/")[1].split("?")[0])
+        return next(p for p in BIG if p["id"] == pid)
+    page = int(url.split("&page=")[1].split("&")[0])
+    return [{k: p[k] for k in ("id", "date", "title", "link")} for p in BIG] if page == 1 else []
+
+
+class IndexKeyTests(unittest.TestCase):
+    def epic(self, width=80):
+        app = App(FakeShop(), width=width, stories=epic(big_fetch), loading_delay=5)
+        app.key("6")
+        return app
+
+    def nerdvana(self, width=80):
+        app = App(FakeShop(), width=width, nerdvana=nerdvana(), loading_delay=5)
+        app.key("7")
+        return app
+
+    def test_from_an_epic_article_zero_goes_back_to_the_list_at_its_first_page(self):
+        app = self.epic()
+        app.key("SEGUENTE")                                       # list page 2
+        app.key("1")                                              # open an article from page 2
+        self.assertTrue(app.screen()[0].startswith("STORIA"))
+        app.key("0")
+        screen = app.screen()
+        self.assertTrue(screen[0].startswith("STORIE EPIC"))
+        self.assertIn("1/2", screen[0])                           # the first of two pages
+        self.assertIn("Storia 12", "\n".join(screen))
+        app.key("ANNUL")                                          # one step back: the main menu
+        self.assertEqual(app.screen()[0], "ITOMItel".center(80))
+
+    def test_zero_on_the_epic_index_itself_goes_to_its_first_page_and_stays(self):
+        app = self.epic()
+        app.key("SEGUENTE")
+        self.assertIn("2/2", app.screen()[0])
+        app.key("0")
+        self.assertIn("1/2", app.screen()[0])
+        app.key("0")
+        self.assertTrue(app.screen()[0].startswith("STORIE EPIC"))
+
+    def test_the_key_line_names_the_zero_key_only_where_it_leads_somewhere(self):
+        app = self.epic()
+        self.assertNotIn("0=indice", app.screen()[-1])            # already on the index
+        app.key("1")
+        self.assertIn("0=indice Storie", app.screen()[-1])        # inside an article
+        nv = self.nerdvana()
+        self.assertNotIn("0=indice", nv.screen()[-1])             # the list of cities
+        nv.key("1")
+        self.assertIn("0=indice Nerdvana", nv.screen()[-1])       # a city's guides
+        nv.key("1")
+        self.assertIn("0=indice Nerdvana", nv.screen()[-1])       # a guide
+
+    def test_from_a_nerdvana_guide_zero_goes_to_the_cities(self):
+        app = self.nerdvana()
+        app.key("1"); app.key("1")                                # Londra -> first guide
+        self.assertTrue(app.screen()[0].startswith("GUIDA"))
+        app.key("0")
+        screen = app.screen()
+        self.assertTrue(screen[0].startswith("NERDVANA"))
+        self.assertNotIn("LONDRA", screen[0])
+        self.assertIn("Londra", "\n".join(screen))               # the list of cities
+        app.key("ANNUL")
+        self.assertEqual(app.screen()[0], "ITOMItel".center(80))
+
+    def test_from_a_cities_guide_list_zero_goes_to_the_cities(self):
+        app = self.nerdvana()
+        app.key("1")
+        self.assertTrue(app.screen()[0].startswith("NERDVANA - LONDRA"))
+        app.key("0")
+        self.assertNotIn("LONDRA", app.screen()[0])
+
+    def test_zero_does_not_disturb_the_other_sections(self):
+        app = App(FakeShop(), loading_delay=5)
+        app.key("1")                                              # the shop's categories: 0 is not a choice there
+        before = app.screen()[0]
+        app.key("0")
+        self.assertEqual(app.screen()[0], before)
+
+    def test_key_lines_fit_on_80_and_40_columns(self):
+        for width in (80, 40):
+            for app in (self.epic(width), self.nerdvana(width)):
+                for key in ("1", "1", "0"):
+                    app.key(key)
+                    self.assertTrue(all(len(r) == width for r in app.screen()), width)
+                    self.assertLessEqual(len(app.screen()[-1].rstrip()), width)
+
+    def test_guida_mentions_the_key(self):
+        app = App(FakeShop())
+        app.key("GUIDA")
+        self.assertIn("torna all'indice", "\n".join(app.screen()))
 
 
 if __name__ == "__main__":

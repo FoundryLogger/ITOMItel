@@ -98,6 +98,8 @@ indicata nella schermata:
   New York, Osaka, Tokyo, con il numero di guide), poi la guida in **ordine alfabetico** (la data di
   pubblicazione non significa niente qui, quindi non è mostrata) e infine si legge.
 
+In tutte le loro pagine il tasto **0** torna all'**indice del sito**: l'elenco delle città per Nerdvana,
+la prima pagina dell'elenco per le Storie (la riga dei tasti lo ricorda: "0=indice Nerdvana").
 L'elenco si scarica subito, il testo di un articolo solo quando lo apri. Le risposte restano 10 minuti
 in memoria e l'ultima copia sul disco (`cache/`), così si legge anche senza rete. Immagini, video e
 audio non compaiono; i titoli di paragrafo sono in maiuscolo. Per aggiungere un altro sito WordPress

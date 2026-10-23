@@ -71,11 +71,13 @@ class WordPressClient:
     def __init__(self, site: str, category: str | None = None,
                  cache_dir: str | Path | None = None, ttl: float = 600.0, timeout: float = 15.0,
                  fetch=None, sort: str = "date", show_dates: bool = True,
-                 list_title: str = "STORIE", detail_title: str = "STORIA"):
+                 list_title: str = "STORIE", detail_title: str = "STORIA",
+                 index_name: str = "sito"):
         self.site = site.rstrip("/")
         self.category = category
         self.sort, self.show_dates = sort, show_dates
         self.list_title, self.detail_title = list_title, detail_title
+        self.index_name = index_name         # how the 0 key names the site's index: "0=indice <name>"
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.ttl, self.timeout = ttl, timeout
         self._fetch = fetch or self._download
