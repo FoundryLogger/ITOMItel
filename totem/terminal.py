@@ -247,27 +247,35 @@ class KeyWatcher:
     """Listens to the port while a screen is being drawn.
 
     interrupted() is what draw() asks between two pieces: it reads whatever has arrived,
-    decodes it and says True as soon as a command we know is waiting. Those commands are
-    kept in `pending` for the main loop; bytes we don't understand (noise, keys nobody has
-    taught us) never interrupt anything.
+    decodes it and says True as soon as a command that matters is waiting. Which commands
+    matter is decided by is_command(key), e.g. App.accepts (does the key change this
+    screen?); without it every known key matters. Every key is kept in `pending`, in
+    order, for the main loop, so a key that did not interrupt is not lost: it is just
+    handled after the drawing. Bytes we don't understand (noise, keys nobody has taught
+    us) are never kept.
     """
 
-    def __init__(self, port, decoder: "KeyDecoder", log=None):
+    def __init__(self, port, decoder: "KeyDecoder", log=None, is_command=None):
         self.port, self.decoder, self.log = port, decoder, log
+        self.is_command = is_command or (lambda key: True)
         self.pending: list[str] = []
+        self.urgent = False
 
     def interrupted(self) -> bool:
         waiting = getattr(self.port, "in_waiting", 0)
         if waiting:
-            self.pending.extend(self.decoder.feed(self.port.read(waiting)))
+            for key in self.decoder.feed(self.port.read(waiting)):
+                self.pending.append(key)
+                if self.is_command(key):
+                    self.urgent = True
             if self.log:
                 for seq in self.decoder.take_unknown():
                     self.log(seq)
-        return bool(self.pending)
+        return self.urgent
 
     def take(self) -> list[str]:
-        """The commands that arrived during a drawing (and forget them)."""
-        out, self.pending = self.pending, []
+        """The keys that arrived during a drawing (and forget them)."""
+        out, self.pending, self.urgent = self.pending, [], False
         return out
 
 

@@ -148,6 +148,12 @@ class View:
     def on_key(self, k: str) -> bool:
         return False
 
+    def accepts(self, k: str) -> bool:
+        """Would this key change what the screen shows? (The keys every screen shares, like
+        Indice, Guida and Annul., are decided by App.accepts.) It lets the terminal decide
+        whether a key pressed during a drawing is worth interrupting it for."""
+        return False
+
 
 class Message(View):
     def __init__(self, app, title, lines):
@@ -178,6 +184,11 @@ class Paged(View):
         return pick(self.w, "Seguente=pagina successiva   Precedente=pagina precedente"
                             "   Indice=menu",
                     "Seguente/Precedente=pagine  Indice=menu")
+
+    def accepts(self, k):
+        if k == SEGUENTE:
+            return self.page < self.pages() - 1
+        return k == PRECEDENTE          # a page back, or back one screen from the first
 
     def on_key(self, k):
         if k == SEGUENTE:
@@ -217,6 +228,9 @@ class Home(View):
         keys = "Guida=aiuto"
         return render(self.w, "", body, hint="Premi il numero desiderato",
                       keys=keys.ljust(self.w - len(STORE_DOMAIN)) + STORE_DOMAIN)
+
+    def accepts(self, k):
+        return k.isdigit() and (int(k) - 1) % 10 < len(self.items)
 
     def on_key(self, k):
         # 1..9 choose the first nine entries, 0 the tenth (the keypad of a phone)
@@ -314,6 +328,10 @@ class CategoryList(Paged):
         return render(w, "CATEGORIE", body, hint=choose_hint(len(page_items)),
                       keys=self.paging_keys(), page=(self.page, self.pages()))
 
+    def accepts(self, k):
+        i = chosen(k, self.page, self.per_page)
+        return i < len(self.items) if i is not None else super().accepts(k)
+
     def on_key(self, k):
         i = chosen(k, self.page, self.per_page)
         if i is not None:
@@ -359,6 +377,10 @@ class ProductList(Paged):
             body.append(f" {INDEX_KEYS[j]}  {name}".ljust(w - len(price) - 1) + " " + price)
         return render(w, self.title.upper(), body, hint=choose_hint(len(page_items)),
                       keys=self.paging_keys(), page=(self.page, self.pages()))
+
+    def accepts(self, k):
+        i = chosen(k, self.page, self.per_page)
+        return i < len(self.items) if i is not None else super().accepts(k)
 
     def on_key(self, k):
         i = chosen(k, self.page, self.per_page)
@@ -449,6 +471,12 @@ class CityList(Paged):
         return render(w, self.client.list_title, body, hint=choose_hint(len(page_items)),
                       keys=site_keys(w, self.client, with_zero=False), page=(self.page, self.pages()))
 
+    def accepts(self, k):
+        if k == "0":
+            return self.page > 0                     # it is the index itself: only the page can change
+        i = chosen(k, self.page, self.per_page)
+        return i < len(self.items) if i is not None else super().accepts(k)
+
     def on_key(self, k):
         if k == "0":
             self.app.go_to_site_index()
@@ -497,6 +525,12 @@ class StoryList(Paged):
                       keys=site_keys(w, client, with_zero=not self.is_index),
                       page=(self.page, self.pages()))
 
+    def accepts(self, k):
+        if k == "0":
+            return not self.is_index or self.page > 0
+        i = chosen(k, self.page, self.per_page)
+        return i < len(self.items) if i is not None else super().accepts(k)
+
     def on_key(self, k):
         if k == "0":
             self.app.go_to_site_index()
@@ -539,6 +573,9 @@ class StoryDetail(Paged):
                       hint=f"Fonte: {self.client.domain}",
                       keys=site_keys(self.w, self.client, with_zero=True),
                       page=(self.page, self.pages()))
+
+    def accepts(self, k):
+        return k == "0" or super().accepts(k)
 
     def on_key(self, k):
         if k == "0":
@@ -594,6 +631,19 @@ class Televideo(View):
                       keys=pick(w, "Digita 3 cifre per cambiare pagina   Seguente/Precedente   Indice=menu",
                                 "3 cifre=pagina  Segu/Prec  Indice=menu"),
                       page=tag)
+
+    def accepts(self, k):
+        page = self.page
+        if k.isdigit() or k == ANNUL:
+            return True                              # a digit always changes the header or loads a page
+        if k in (CORREZIONE, INVIO):
+            return bool(self.entry)
+        if k == PRECEDENTE:
+            return True                              # up a page, or back to the menu
+        if k == SEGUENTE and page:
+            return (self.scroll + self._per_screen() < len(page.lines)
+                    or any(s > page.sub for s in page.subs) or page.number + 1 <= LAST_PAGE)
+        return False
 
     def on_key(self, k):
         if k.isdigit():
@@ -651,6 +701,15 @@ class Search(View):
                       keys=pick(self.w, "Correzione=cancella una lettera   Annul.=torna indietro",
                                 "Correzione=cancella  Annul=indietro"))
 
+    def accepts(self, k):
+        if k == INVIO:
+            return bool(self.text.strip())
+        if k == CORREZIONE:
+            return bool(self.text)
+        if k == ANNUL:
+            return True                              # clears the text, or goes back
+        return len(k) == 1 and k.isprintable() and len(self.text) < 30
+
     def on_key(self, k):
         if k == INVIO:
             if self.text.strip():
@@ -695,6 +754,9 @@ class Guide(View):
                       keys=pick(self.w, "Annul.=torna indietro   Indice=menu iniziale",
                                 "Annul=indietro  Indice=menu"))
 
+    def accepts(self, k):
+        return k == "1"
+
     def on_key(self, k):
         if k == "1":
             self.app.push(SettingsView(self.app))
@@ -718,6 +780,9 @@ class SettingsView(View):
         return render(w, "IMPOSTAZIONI", body, hint="Premi il numero da cambiare",
                       keys=pick(w, "Annul.=torna alla guida   Indice=menu iniziale",
                                 "Annul=indietro  Indice=menu"))
+
+    def accepts(self, k):
+        return k.isdigit() and 1 <= int(k) <= len(ORDER)
 
     def on_key(self, k):
         if k.isdigit() and 1 <= int(k) <= len(ORDER):
@@ -760,6 +825,21 @@ class App:
     @property
     def view(self) -> View:
         return self.stack[-1]
+
+    def accepts(self, k: str) -> bool:
+        """Is k a command that changes the screen being shown? A key that does nothing there
+        (a letter in the menu, Seguente on the last page...) is not worth interrupting a
+        drawing for; the keys every screen shares are judged here, the rest by the view."""
+        k = ARROWS.get(k, k)
+        if k == RIPETIZ:
+            return True                              # it asks for the whole screen again
+        if k == INDICE:
+            return len(self.stack) > 1               # on the menu there is nowhere to go
+        if k == GUIDA:
+            return not isinstance(self.view, (Guide, SettingsView))
+        if self.view.accepts(k):
+            return True
+        return k in (ANNUL, PRECEDENTE) and len(self.stack) > 1
 
     def go_to_site_index(self):
         """Back to the index of the WordPress site being read: its list of cities, or

@@ -122,8 +122,12 @@ def cmd_serial(args) -> None:
     app = App(shop, width=args.width, loading_delay=args.loading_delay, settings=settings)
     term = SerialTerminal(_open(args), args.profile, 0, args.baud)
     decoder = KeyDecoder(load_keymap(args.keymap))
+    saver = Screensaver(args.width, settings.saver_after, settings.ink, hold=settings.hold)
+    # During the screensaver any key matters (it wakes it); otherwise only the keys that would
+    # change the screen being drawn interrupt the drawing.
     watcher = KeyWatcher(term.port, decoder,
-                         log=lambda seq: print(f"[sequenza non riconosciuta: {seq.hex(' ')}]", file=sys.stderr))
+                         log=lambda seq: print(f"[sequenza non riconosciuta: {seq.hex(' ')}]", file=sys.stderr),
+                         is_command=lambda k: saver.active or app.accepts(k))
     interrupted = watcher.interrupted     # asked between the pieces of every drawing
     app.on_loading = lambda rows: term.try_draw(rows, abort=interrupted)
     parity = {"E": "pari", "O": "dispari", "N": "nessuna"}[args.parity]
@@ -133,7 +137,6 @@ def cmd_serial(args) -> None:
     secs = term.try_draw(app.screen(), full=True, abort=interrupted)
     print(f"[disegno schermata: ~{secs:.1f}s]", file=sys.stderr)
     last = time.monotonic()
-    saver = Screensaver(args.width, settings.saver_after, settings.ink, hold=settings.hold)
     try:
         while True:
             data = term.read()
