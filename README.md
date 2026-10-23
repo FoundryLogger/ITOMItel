@@ -2,7 +2,7 @@
 
 > **In English:** ITOMItel turns a vintage Philips HCS 80/08 Videotel/Minitel-style terminal
 > into a kiosk. A Raspberry Pi talks to the terminal over its serial port (three wires, no
-> adapter) and renders every screen as 80x24 ASCII with ANSI cursor codes at 1200 baud. It
+> adapter) and renders every screen as 80x24 ASCII with ANSI cursor codes at 1200 or 4800 baud. It
 > browses and searches a Shopify store's public catalogue, reads articles from two WordPress
 > sites and RAI Televideo (text only), and has a screensaver and a settings screen. Pure
 > Python 3 standard library (plus `pyserial`), a browser emulator, and tests that need no
@@ -243,7 +243,7 @@ in `~/.ssh/config`. Il Minitel va riportato in Ascii 80 col dopo il riavvio (Rip
 | `totem/app.py` | schermate e navigazione (macchina a stati, indipendente dal terminale) |
 | `totem/logo.py` | logo ITOMI in ASCII (griglia 21 × 12 moduli) |
 | `totem/text.py` | da HTML a testo, caratteri non disponibili sul terminale (accenti, €), a capo |
-| `totem/terminal.py` | codifica schermo → byte ASCII e byte → tasti, con aggiornamento a righe |
+| `totem/terminal.py` | codifica schermo → byte ASCII (a righe cambiate, a pezzi interrompibili), byte → tasti, cambio di velocità del terminale |
 | `totem/serial_cli.py` | comandi `serial`, `monitor`, `probe`, `learn` |
 | `totem/saver.py` | screensaver: schermo pieno di `#` con il logo scavato al centro |
 | `totem/blog.py` | articoli e categorie di un sito WordPress (Storie EPIC, Nerdvana Guides) via API pubblica, con cache |
@@ -260,6 +260,10 @@ in `totem/app.py`.
 ## Ancora da fare
 
 - Provare sul terminale vero i caratteri accentati (ora si scrivono come `e'`, `EUR`).
+- Il riallineamento della velocità dopo lo spegnimento del Minitel funziona, ma finché non scatta qualche
+  carattere casuale arriva al Pi come tasto: nel registro si vedono molti "disegno ~0.0s" di fila. Si può
+  rendere più pronto ignorando i tasti subito dopo un burst di byte di controllo.
+- 9600 baud: il codice del comando esiste ma non è stato verificato, quindi non è offerto nelle Impostazioni.
 - Se il terminale supporta il video inverso (`ESC[7m`), il negativo dello screensaver potrebbe essere
   a blocchi pieni invece che di `#`, consumando meno fosforo.
 - Verificare le condizioni di riutilizzo dei contenuti RAI prima di mostrare il Televideo al pubblico.
