@@ -118,13 +118,13 @@ class ScreensaverConfigureTests(unittest.TestCase):
     def test_new_ink_rebuilds_the_frames(self):
         s = Screensaver(80, after=60)
         s.configure(60, "@", 30)
-        self.assertIn("@", "".join(s.frames[14][0]))
-        self.assertNotIn("#", "".join(s.frames[14][0]))
+        self.assertIn("@", "".join(s.frames[24][0]))
+        self.assertNotIn("#", "".join(s.frames[24][0]))
 
     def test_new_hold_changes_the_pause_on_the_full_logo(self):
         s = Screensaver(80, after=60)
         s.configure(60, "#", 120)
-        self.assertEqual(s.frames[14][1], 120)
+        self.assertEqual(s.frames[24][1], 120)
 
     def test_never_stops_it_and_a_later_value_starts_it_again(self):
         s = Screensaver(80, after=60)
@@ -160,10 +160,10 @@ class WebSettingsTests(unittest.TestCase):
         self.assertEqual(r["settings"]["ink"], "@")
         with urllib.request.urlopen(base + "/api/saver?sid=t&width=80") as resp:
             frames = json.load(resp)["frames"]
-        self.assertIn("@", "".join(frames[14]["rows"]))
+        self.assertIn("@", "".join(frames[24]["rows"]))
         with urllib.request.urlopen(base + "/api/saver?sid=other&width=80") as resp:
             other = json.load(resp)["frames"]
-        self.assertIn("#", "".join(other[14]["rows"]))           # another session keeps its own
+        self.assertIn("#", "".join(other[24]["rows"]))           # another session keeps its own
 
 
 if __name__ == "__main__":

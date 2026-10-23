@@ -82,21 +82,21 @@ Durante i test erano usati 1 kΩ in serie su entrambi i fili. Con un partitore a
 
 ## Screensaver
 
-Dopo 5 minuti senza tasti il Minitel mostra il logo ITOMI **in negativo** (il logo è "scavato" in un
-campo di `#`), centrato e costruito riga per riga: fermo per 30 secondi, poi si cancella dal basso e
-lo schermo resta vuoto per 20 secondi, in ciclo. Un tasto qualsiasi lo interrompe e riporta la
-schermata di prima; **quel tasto non vale come comando**. Un ciclo completo costa circa 1,2 KB (10 s
-di trasmissione a 1200 baud). Si regola dalla schermata Impostazioni (vedi sotto) o con
-`--saver SECONDI` (0 = mai) e `--saver-ink CARATTERE` all'avvio. Dopo 2 minuti di inattività il totem torna
-prima alla home (`--idle`). Nell'emulatore web c'è il menu "Screensaver" e il pulsante
-"Prova screensaver". Il codice è in `totem/saver.py`.
+Dopo 5 minuti senza tasti il Minitel riempie **tutto lo schermo di `#`** e lascia **vuoto solo il logo
+ITOMI**, al centro (il logo è "scavato" nel riempimento). Lo schermo si riempie riga per riga dall'alto;
+resta fermo per 30 secondi, poi si svuota dal basso e rimane vuoto per 20 secondi, in ciclo. Un tasto
+qualsiasi lo interrompe e riporta la schermata di prima; **quel tasto non vale come comando**.
+A 1200 baud la costruzione richiede circa 20 secondi (uno schermo pieno sono quasi 2 KB). Si regola
+dalla schermata Impostazioni (vedi sotto) o con `--saver SECONDI` (0 = mai) e `--saver-ink CARATTERE`
+all'avvio. Dopo 2 minuti di inattività il totem torna prima alla home (`--idle`). Nell'emulatore web
+c'è il menu "Screensaver" e il pulsante "Prova screensaver". Il codice è in `totem/saver.py`.
 
 ## Impostazioni
 
 Dal Minitel: **Guida → 1 (Impostazioni)**. Ogni numero porta l'impostazione al valore successivo
 (in giro, poi ricomincia): 1 screensaver dopo 1 / 5 / 10 minuti o mai, 2 ritorno alla home dopo
-1 / 2 / 5 minuti o mai, 3 carattere del logo (`# @ X * + O`), 4 durata del logo fermo (15 s, 30 s,
-1 min, 2 min). I cambi valgono subito e restano salvati in `settings.json` (nella cartella del
+1 / 2 / 5 minuti o mai, 3 carattere di riempimento (`# @ X * + O`), 4 durata dello schermo pieno fermo (15 s,
+30 s, 1 min, 2 min). I cambi valgono subito e restano salvati in `settings.json` (nella cartella del
 programma, non è nel repository) anche dopo lo spegnimento del Pi. Le opzioni `--saver`, `--idle`
 e `--saver-ink` di `serial` servono solo come valore di partenza; con `--settings FILE` si sceglie
 un altro file. Nell'emulatore web la scelta dello screensaver segue quella delle Impostazioni.
@@ -133,7 +133,7 @@ in `~/.ssh/config`. Il Minitel va riportato in Ascii 80 col dopo il riavvio (Rip
 | `totem/logo.py` | logo ITOMI in ASCII (griglia 21 × 12 moduli) |
 | `totem/terminal.py` | codifica schermo → byte ASCII e byte → tasti, con aggiornamento a righe |
 | `totem/serial_cli.py` | comandi `serial`, `monitor`, `probe`, `learn` |
-| `totem/saver.py` | screensaver: logo in negativo costruito a righe |
+| `totem/saver.py` | screensaver: schermo pieno di `#` con il logo scavato al centro |
 | `totem/settings.py` | impostazioni modificabili dal Minitel, salvate in `settings.json` |
 | `totem/web.py`, `totem/web/index.html` | emulatore nel browser |
 | `tests/` | test senza hardware né rete: `python3 -m unittest discover tests` |
@@ -145,7 +145,7 @@ in `totem/app.py`.
 
 - Caratteri accentati sul terminale vero (ora si scrivono come `e'`, `EUR`).
 - Verificare sul terminale vero lo screensaver; se supporta il video inverso (ESC[7m), il logo in negativo
-  potrebbe essere a blocchi pieni invece che di `#`.
+  potrebbe essere a blocchi pieni invece che di `#` (e consumerebbe meno fosforo).
 
 ## Usarlo con un altro negozio Shopify
 

@@ -16,9 +16,9 @@ SPECS: dict[str, tuple[str, str, list]] = {
         (60, "1 minuto"), (300, "5 minuti"), (600, "10 minuti"), (0, "mai")]),
     "idle_after": ("Ritorno alla home dopo", "Torna alla home", [
         (60, "1 minuto"), (120, "2 minuti"), (300, "5 minuti"), (0, "mai")]),
-    "ink": ("Carattere del logo", "Carattere logo", [
+    "ink": ("Carattere di riempimento", "Riempimento", [
         ("#", "#"), ("@", "@"), ("X", "X"), ("*", "*"), ("+", "+"), ("O", "O")]),
-    "hold": ("Logo fermo per", "Logo fermo", [
+    "hold": ("Schermo pieno fermo per", "Fermo per", [
         (15, "15 secondi"), (30, "30 secondi"), (60, "1 minuto"), (120, "2 minuti")]),
 }
 

@@ -5,29 +5,36 @@ import urllib.request
 
 from test_encoding import Ansi
 from totem import logo
-from totem.saver import Screensaver, cycle, negative_field
+from totem.saver import Screensaver, cycle, logo_origin, negative_screen
 from totem.terminal import encode_screen
 from totem.web import make_server
 
 
-class NegativeFieldTests(unittest.TestCase):
-    def test_it_is_the_logo_inverted(self):
-        field = negative_field(80, "#")
-        self.assertEqual((len(field), {len(r) for r in field}), (14, {46}))
-        # one module of margin: logo module (r, c) is field cell (r + 1, c + 1), 2 chars wide
+class NegativeScreenTests(unittest.TestCase):
+    def test_the_whole_screen_is_filled_and_the_logo_is_carved_out(self):
+        rows = negative_screen(80, "#")
+        self.assertEqual((len(rows), {len(r) for r in rows}), (24, {80}))
+        top, left = logo_origin(80)
+        self.assertEqual((top, left), (6, 19))                  # centred: (24-12)/2, (80-42)/2
         for r, row in enumerate(logo.GRID):
             for c, module in enumerate(row):
-                cell = field[r + 1][2 * (c + 1):2 * (c + 1) + 2]
+                cell = rows[top + r][left + 2 * c:left + 2 * c + 2]
                 self.assertEqual(cell, "  " if module == "#" else "##", (r, c))
-        self.assertEqual(set(field[0]), {"#"})          # the margin is solid
-        self.assertEqual(set(field[-1]), {"#"})
+        carved = {(top + r, left + 2 * c + k) for r, row in enumerate(logo.GRID)
+                  for c, m in enumerate(row) if m == "#" for k in (0, 1)}
+        for r, row in enumerate(rows):
+            for c, ch in enumerate(row):
+                if (r, c) not in carved:
+                    self.assertEqual(ch, "#", (r, c))              # everything else is ink
 
     def test_ink_character_is_configurable(self):
-        self.assertEqual(set("".join(negative_field(80, "@"))), {"@", " "})
+        self.assertEqual(set("".join(negative_screen(80, "@"))), {"@", " "})
 
-    def test_forty_columns_fit(self):
-        field = negative_field(40)
-        self.assertEqual((len(field), {len(r) for r in field}), (12, {40}))
+    def test_forty_columns_use_the_compact_logo(self):
+        rows = negative_screen(40)
+        self.assertEqual((len(rows), {len(r) for r in rows}), (24, {40}))
+        self.assertEqual(logo_origin(40), (6, 0))
+        self.assertIn(" ", rows[6 + 3])
 
 
 class CycleTests(unittest.TestCase):
@@ -44,19 +51,18 @@ class CycleTests(unittest.TestCase):
         self.assertEqual(frames[0][0], blank)
         self.assertEqual(frames[-1][0], blank)
         filled = [sum(1 for r in rows if r.strip()) for rows, _ in frames]
-        n = len(negative_field(80))
-        self.assertEqual(filled[:n + 1], list(range(n + 1)))            # 0, 1, 2 ... 14
-        self.assertEqual(filled[n:], list(range(n, -1, -1)))            # then back down
+        self.assertEqual(filled[:25], list(range(25)))                 # 0, 1, 2 ... 24
+        self.assertEqual(filled[24:], list(range(24, -1, -1)))         # then back down
+        self.assertEqual(frames[24][0], negative_screen(80))           # the full screen
 
-    def test_the_field_is_centred(self):
-        rows = cycle(80)[14][0]                      # fully built
-        used = [i for i, r in enumerate(rows) if r.strip()]
-        self.assertEqual(used[0], 24 - used[-1] - 1)                    # same space above and below
-        widths = {len(r) - len(r.lstrip()) for r in rows if r.strip()}
-        self.assertEqual(widths, {17})                                  # (80 - 46) / 2
-        self.assertEqual(len(rows[used[0]].rstrip()), 17 + 46)
+    def test_it_is_built_from_the_top_and_emptied_from_the_bottom(self):
+        frames = cycle(80)
+        full = negative_screen(80)
+        self.assertEqual(frames[3][0][:3], full[:3])
+        self.assertEqual(frames[3][0][3], " " * 80)
+        self.assertEqual(frames[24 + 1][0][-1], " " * 80)             # last row goes first
 
-    def test_bytes_for_the_terminal_reproduce_every_frame_and_stay_small(self):
+    def test_bytes_for_the_terminal_reproduce_every_frame(self):
         frames = cycle(80)
         t, prev, total = Ansi(), None, 0
         for rows, _ in frames:
@@ -65,7 +71,7 @@ class CycleTests(unittest.TestCase):
             self.assertFalse(t.overflow)
             self.assertEqual(t.rows(), [r.rstrip() for r in rows])
             prev, total = rows, total + len(data)
-        self.assertLess(total * 10 / 1200, 40)       # the whole cycle in under 40 s at 1200 baud
+        self.assertLess(total * 10 / 1200, 30)       # the whole cycle in under 30 s at 1200 baud
 
 
 class ScreensaverClockTests(unittest.TestCase):
@@ -115,7 +121,7 @@ class WebSaverTests(unittest.TestCase):
         with urllib.request.urlopen(url) as r:
             frames = json.load(r)["frames"]
         self.assertEqual(len(frames), len(cycle(80)))
-        self.assertEqual(frames[14]["rows"], cycle(80)[14][0])
+        self.assertEqual(frames[24]["rows"], cycle(80)[24][0])
         self.assertTrue(all(len(f["rows"]) == 24 for f in frames))
 
 
