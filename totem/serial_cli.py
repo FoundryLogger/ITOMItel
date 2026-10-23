@@ -130,10 +130,16 @@ def cmd_serial(args) -> None:
                          is_command=lambda k: saver.active or app.accepts(k))
     interrupted = watcher.interrupted     # asked between the pieces of every drawing
     app.on_loading = lambda rows: term.try_draw(rows, abort=interrupted)
-    parity = {"E": "pari", "O": "dispari", "N": "nessuna"}[args.parity]
-    app.line_info = f"{args.baud} baud, {args.bits} bit, parità {parity}, {args.stop} stop"
+    def line_text() -> str:
+        parity = {"E": "pari", "O": "dispari", "N": "nessuna"}[args.parity]
+        return f"{term.baud} baud, {args.bits} bit, parità {parity}, {args.stop} stop"
+
     print(f"Totem attivo su {args.port}, profilo {args.profile}. Ctrl+C per uscire.",
           file=sys.stderr)
+    if settings.baud != term.baud:            # the terminal starts at 1200: ask for the saved speed
+        print(f"[velocità: da {term.baud} a {settings.baud} baud]", file=sys.stderr)
+        term.switch_speed(settings.baud)
+    app.line_info = line_text()
     secs = term.try_draw(app.screen(), full=True, abort=interrupted)
     print(f"[disegno schermata: ~{secs:.1f}s]", file=sys.stderr)
     last = time.monotonic()
@@ -145,6 +151,24 @@ def cmd_serial(args) -> None:
             for seq in decoder.take_unknown():
                 print(f"[sequenza non riconosciuta: {seq.hex(' ')}]", file=sys.stderr)
             now = time.monotonic()
+            # A burst of garbage while we talk faster than 1200 baud: the terminal was probably
+            # switched off and on and is back at 1200. Ask it again for the saved speed.
+            if decoder.take_dropped() >= 4 and term.baud != 1200:
+                print(f"[velocità: il terminale sembra tornato a 1200, richiedo {settings.baud}]",
+                      file=sys.stderr)
+                term.resync(settings.baud)
+                app.line_info = line_text()
+                term.try_draw(app.screen(), full=True, abort=interrupted)
+                watcher.take()
+                last = now
+                continue
+            if settings.baud != term.baud:        # changed on the Impostazioni screen
+                print(f"[velocità: da {term.baud} a {settings.baud} baud]", file=sys.stderr)
+                term.switch_speed(settings.baud)
+                app.line_info = line_text()
+                term.try_draw(app.screen(), full=True, abort=interrupted)
+                last = now
+                continue
             saver.configure(settings.saver_after, settings.ink, settings.hold)   # live changes
             if keys and saver.wake():
                 # The key that wakes the screensaver is not a command: just bring back

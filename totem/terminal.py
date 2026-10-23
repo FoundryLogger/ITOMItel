@@ -139,6 +139,12 @@ class KeyDecoder:
         self.seqs: dict[bytes, str] = {s: name for name, ss in table.items() for s in ss}
         self.buf = b""
         self.unknown: list[bytes] = []      # escape sequences nobody has taught us yet
+        self.dropped = 0                    # control bytes thrown away: a lot of them in one go
+                                            # means we and the terminal are at different speeds
+
+    def take_dropped(self) -> int:
+        n, self.dropped = self.dropped, 0
+        return n
 
     def take_unknown(self) -> list[bytes]:
         """The escape sequences seen and ignored since the last call (to log them)."""
@@ -196,7 +202,8 @@ class KeyDecoder:
             self.buf = self.buf[1:]
             if 32 <= b < 127:
                 out.append(chr(b))
-            # other control bytes are dropped
+            else:
+                self.dropped += 1             # other control bytes are dropped
         return out
 
 
@@ -279,6 +286,15 @@ class KeyWatcher:
         return out
 
 
+# The Minitel-family command that changes the terminal's speed: ESC : k <code>. Tried on the
+# real HCS 80/08 for 4800 (it answers at the old speed, then follows); 9600 was not checked.
+SPEED_CODES = {1200: 0x64, 4800: 0x76}
+
+
+def speed_command(baud: int) -> bytes:
+    return b"\x1b:k" + bytes([SPEED_CODES[baud]])
+
+
 class SerialTerminal:
     """Thin wrapper over a pyserial port (or anything with read/write)."""
 
@@ -332,6 +348,36 @@ class SerialTerminal:
 
     def read(self) -> bytes:
         return self.port.read(64)
+
+    def switch_speed(self, baud: int, settle: float = 1.0) -> None:
+        """Tell the terminal to change speed, then change ours.
+
+        The command goes out at the old speed and the terminal answers at the old speed
+        too, so for `settle` seconds we read and throw away the answer before moving the
+        port. Waiting less (0.6 s) made the first attempts fail. The terminal's screen is
+        then unknown to us: the next draw is a full one.
+        """
+        if baud == self.baud:
+            return
+        self.port.write(speed_command(baud))
+        drain = getattr(self.port, "flush", None)
+        if drain:
+            drain()
+        end = time.monotonic() + settle
+        while time.monotonic() < end:
+            self.port.read(64)
+        if hasattr(self.port, "baudrate"):
+            self.port.baudrate = baud
+        self.baud = baud
+        self.prev = None
+
+    def resync(self, baud: int, settle: float = 1.0) -> None:
+        """The terminal fell back to 1200 (it was switched off and on): start again from
+        1200 and ask it for `baud`."""
+        if hasattr(self.port, "baudrate"):
+            self.port.baudrate = 1200
+        self.baud = 1200
+        self.switch_speed(baud, settle)
 
 
 def open_port(device: str, baud: int = 1200, bits: int = 7, parity: str = "E",

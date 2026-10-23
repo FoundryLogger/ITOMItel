@@ -20,9 +20,11 @@ SPECS: dict[str, tuple[str, str, list]] = {
         ("#", "#"), ("@", "@"), ("X", "X"), ("*", "*"), ("+", "+"), ("O", "O")]),
     "hold": ("Schermo pieno fermo per", "Fermo per", [
         (15, "15 secondi"), (30, "30 secondi"), (60, "1 minuto"), (120, "2 minuti")]),
+    # Only speeds checked on the real HCS 80/08 (the Pi tells the terminal to change speed).
+    "baud": ("Velocità della linea", "Velocità", [(1200, "1200 baud"), (4800, "4800 baud")]),
 }
 
-DEFAULTS = {"saver_after": 300, "idle_after": 120, "ink": "#", "hold": 30}
+DEFAULTS = {"saver_after": 300, "idle_after": 120, "ink": "#", "hold": 30, "baud": 1200}
 ORDER = list(SPECS)          # the number on the screen is the position + 1
 
 
@@ -95,3 +97,7 @@ class Settings:
     @property
     def hold(self) -> int:
         return self.values["hold"]
+
+    @property
+    def baud(self) -> int:
+        return self.values["baud"]

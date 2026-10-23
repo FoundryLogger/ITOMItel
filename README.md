@@ -110,12 +110,16 @@ registro del Pi come `[sequenza non riconosciuta: …]` (`journalctl -u itomitel
 
 Il profilo **ansi** (ESC[2J, ESC[r;cH, ESC[K) è quello che il terminale capisce.
 
-**La velocità è fissa a 1200 baud**: l'HCS 80/08 non ne accetta altre. Il 23 ottobre 2026 sono state
-provate sul terminale vero 2400, 4800 e 9600 baud mandando il testo direttamente, e 4800 e 9600 dopo il
-comando di cambio velocità dei Minitel (`ESC : k` seguito dal codice della velocità): si leggeva solo
-il riferimento a 1200. Per questo le Impostazioni non hanno una scelta della velocità. A 1200 baud una
-schermata piena impiega circa 7-9 secondi (volutamente lenta, come un Minitel vero): per questo la
-schermata di caricamento è minima e si ridisegnano solo le righe cambiate.
+**Velocità: 1200 o 4800 baud**, a scelta nelle Impostazioni (voce 5). Il terminale parte sempre a 1200 e
+il Pi gli chiede di cambiare con il comando dei Minitel, `ESC : k` seguito dal codice della velocità
+(`v` = 4800, `d` = 1200): il comando esce alla vecchia velocità, il terminale risponde alla vecchia
+velocità (il Pi legge e scarta la risposta) e dopo **1 secondo** il Pi passa alla nuova. All'avvio il Pi
+chiede da solo la velocità salvata. Se il Minitel viene spento e riacceso torna a 1200: premendo
+Indice, 4 e Ripetiz. il Pi riceve spazzatura (parla a 4800 mentre il terminale è a 1200), se ne accorge
+(4 o più byte di controllo scartati in un colpo) e ricomincia da 1200 chiedendo di nuovo la velocità.
+Il 23 ottobre 2026 la prima prova a 4800 era fallita perché dopo il comando si aspettava solo 0,6 secondi;
+con 1 secondo funziona. 2400 e 9600 non sono stati verificati e non sono offerti. A 4800 baud una schermata
+piena impiega circa 2 secondi invece di 8.
 
 ## Cablaggio (verificato sul campo, 2026-10-22)
 
@@ -199,7 +203,7 @@ c'è il menu "Screensaver" e il pulsante "Prova screensaver". Il codice è in `t
 Dal Minitel: voce **9** del menu, oppure **Guida → 1**. Ogni numero porta l'impostazione al valore successivo
 (in giro, poi ricomincia): 1 screensaver dopo 1 / 5 / 10 minuti o mai, 2 ritorno alla home dopo
 1 / 2 / 5 minuti o mai, 3 carattere di riempimento (`# @ X * + O`), 4 durata dello schermo pieno fermo (15 s,
-30 s, 1 min, 2 min). I cambi valgono subito e restano salvati in `settings.json` (nella cartella del
+30 s, 1 min, 2 min), 5 velocità della linea (1200 o 4800 baud, vedi sopra). I cambi valgono subito e restano salvati in `settings.json` (nella cartella del
 programma, non è nel repository) anche dopo lo spegnimento del Pi. Le opzioni `--saver`, `--idle`
 e `--saver-ink` di `serial` servono solo come valore di partenza; con `--settings FILE` si sceglie
 un altro file. Nell'emulatore web la scelta dello screensaver segue quella delle Impostazioni.

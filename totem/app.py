@@ -776,7 +776,10 @@ class SettingsView(View):
             head = f"  {i}  {label} "
             body.append(head.ljust(w - 2 - len(value) - 1, ".") + " " + value)
         body += ["", "  Premi il numero per cambiare il valore.",
-                 "  Le impostazioni restano salvate anche dopo lo spegnimento."]
+                 "  Le impostazioni restano salvate anche dopo lo spegnimento.", ""]
+        body += [("  " + l).rstrip() for l in wrap(
+            "Velocità: il Minitel la segue da solo. Se lo spegni e lo riaccendi, premi Indice, "
+            "4 e Ripetiz.: si riallinea.", w - 4)]
         return render(w, "IMPOSTAZIONI", body, hint="Premi il numero da cambiare",
                       keys=pick(w, "Annul.=torna alla guida   Indice=menu iniziale",
                                 "Annul=indietro  Indice=menu"))
