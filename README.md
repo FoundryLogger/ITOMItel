@@ -1,16 +1,17 @@
 # ITOMItel
 
 > **In English:** ITOMItel turns a vintage Philips HCS 80/08 Videotel/Minitel-style terminal
-> into a kiosk that browses and searches a Shopify store's public catalogue. A Raspberry Pi
-> talks to the terminal over its serial port (three wires, no adapter) and renders every screen
-> as 80x24 ASCII with ANSI cursor codes at 1200 baud. Pure Python 3 standard library (plus
-> `pyserial`), with a browser emulator and tests that need no hardware. Code MIT licensed;
-> ITOMI is a registered trademark (see [TRADEMARK.md](TRADEMARK.md)).
+> into a kiosk. A Raspberry Pi talks to the terminal over its serial port (three wires, no
+> adapter) and renders every screen as 80x24 ASCII with ANSI cursor codes at 1200 baud. It
+> browses and searches a Shopify store's public catalogue, reads articles from two WordPress
+> sites and RAI Televideo (text only), and has a screensaver and a settings screen. Pure
+> Python 3 standard library (plus `pyserial`), a browser emulator, and tests that need no
+> hardware. Code MIT licensed; ITOMI is a registered trademark (see [TRADEMARK.md](TRADEMARK.md)).
 
-Totem informativo con il catalogo di ITOMI.shop su un terminale Videotel
-**Philips HCS 80/08** (SIP), collegato a un Raspberry Pi via porta seriale.
-Il programma legge in tempo reale il catalogo pubblico del negozio Shopify e lo
-mostra in schermate a 80 colonne × 24 righe.
+Totem informativo su un terminale Videotel **Philips HCS 80/08** (SIP), collegato a un Raspberry Pi
+via porta seriale. In schermate a 80 colonne × 24 righe mostra il **catalogo di ITOMI.shop** (negozio
+Shopify, letto in tempo reale), le **Storie di EPIC** e le **Guide Nerdvana** (due siti WordPress),
+il **Televideo RAI**, i Credits con la scheda tecnica, le Impostazioni e uno screensaver.
 
 Solo libreria standard di Python 3.9+; `pyserial` serve solo per il collegamento
 al terminale vero (`pip install -r requirements.txt`).
@@ -22,6 +23,25 @@ Due colonne: a sinistra **1** Sfoglia Catalogo, **2** Novità, **3** Bestseller,
 **9** Impostazioni, **0** Credits (la decima voce è lo zero, come sul tastierino di un telefono).
 Voci e ordine sono in `HOME_ITEMS` in `totem/app.py`.
 
+## I tasti
+
+| Tasto del Minitel | Cosa fa |
+|---|---|
+| **numeri** | scelgono la voce (nel Televideo si digitano le 3 cifre della pagina) |
+| **Seguente**, freccia **→** | pagina successiva |
+| **Precedente**, freccia **←** | pagina precedente; dalla prima pagina torna indietro di una schermata |
+| **Annul.** | indietro di una schermata (nella ricerca cancella prima il testo scritto) |
+| **Indice** | torna al menu principale |
+| **Correzione** | cancella una lettera |
+| **Guida** | aiuto; da lì **1** apre le Impostazioni |
+| **Ripetiz.** | ridisegna tutta la schermata e rilegge i dati |
+| **Invio** | conferma la ricerca |
+| **0** | nelle pagine di Storie e Guide: torna all'indice del sito |
+
+Le frecce su e giù non fanno nulla. Le schermate di lettura vanno a pagine intere: lo scorrimento per
+riga, che farebbe ridisegnare tutto lo schermo a ogni pressione (oltre 10 secondi a 1200 baud), è stato
+provato con le sequenze di cancella/inserisci riga del terminale e scartato.
+
 ## Provarlo senza hardware
 
 ```bash
@@ -32,7 +52,7 @@ python3 -m totem web             # emulatore nel browser, fosfori verdi
 
 Nell'anteprima in console: un numero sceglie la voce, un testo cerca; i tasti del
 terminale si scrivono con i due punti (`:i` Indice, `:n` Seguente, `:p` Precedente,
-`:a` Annul., `:c` Correzione, `:g` Guida, `:r` Ripetiz.).
+`:a` Annul., `:c` Correzione, `:g` Guida, `:r` Ripetiz., `:destra` e `:sinistra` le frecce).
 `--keys '3|1|:n'` riproduce una sequenza senza interazione.
 
 Nell'emulatore web: Home/F2 Indice, F1 Guida, Esc Annul., Backspace Correzione,
@@ -54,6 +74,16 @@ python3 -m totem serial  --port /dev/serial0   # avvia il totem (profilo ansi)
 ```
 
 Con un adattatore USB-seriale la porta è del tipo `/dev/cu.usbserial-XXXX`.
+
+**All'accensione** il terminale mostra il suo elenco telefonico e non ricorda la modalità: per usare il
+totem premi **Indice → 4 (Ascii 80 col) → Ripetiz.**
+
+I tasti arrivano come sequenze `ESC O x` (Indice `P`, Seguente `n`, Precedente `R`, Annul. `Q`,
+Correzione `l`, Guida `m`, Ripetiz. `S`, Invio `M`), registrate in `keymap.json`: il file è nel
+repository perché è la mappa di questo terminale (`learn TASTO …` impara solo i tasti che nomini). Le
+frecce sono le sequenze ANSI standard (destra `ESC [ C`, sinistra `ESC [ D`) e il programma le conosce
+di serie. Per scoprire un tasto nuovo senza fermare il servizio basta premerlo: la sequenza compare nel
+registro del Pi come `[sequenza non riconosciuta: …]` (`journalctl -u itomitel`).
 
 Il profilo **ansi** (ESC[2J, ESC[r;cH, ESC[K) è quello che il terminale capisce. A 1200 baud una
 schermata piena impiega circa 7-9 secondi (volutamente lenta, come un Minitel vero): per questo la
@@ -112,7 +142,7 @@ scegliere la categoria, ordine, date sì/no, titoli) e si aggiunge una voce a `H
 
 Voce **8** del menu. Mostra le pagine di RAI Televideo nella versione "solo testo" che RAI pubblica
 sul web (`servizitelevideo.rai.it`, 40 colonne, centrate sullo schermo a 80). Si digitano **3 cifre**
-(100-899) e la pagina si apre al terzo numero, come con il telecomando; **Seguente/Precedente**
+(100-899) e la pagina si apre al terzo numero, come con il telecomando; **Seguente/Precedente** (o le frecce)
 scorrono la pagina se è più lunga dello schermo, poi passano alla sottopagina e infine alla pagina
 successiva o precedente. Niente colori né grafica a mosaico. Ogni schermata riporta la fonte
 ("Fonte: RAI Televideo - servizitelevideo.rai.it"). Il codice è in `totem/televideo.py`.
@@ -164,7 +194,8 @@ il Pi, il tasto Ripetiz. ridisegna tutta la schermata.
 ## Aggiornare il Pi
 
 Dal Mac: `deploy/update-pi.sh` copia il codice sul Pi, fa girare lì i test e solo se passano riavvia
-il totem (ferma il processo e systemd lo rilancia, senza `sudo`). Serve un accesso SSH con chiave:
+il totem (ferma il processo e systemd lo rilancia, senza `sudo`). Allinea anche le cancellazioni (un file
+tolto dal progetto sparisce dal Pi) senza toccare `keymap.json`, `settings.json` e `cache/`. Serve un accesso SSH con chiave:
 una volta sola, `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_itomitel` e
 `ssh-copy-id -i ~/.ssh/id_ed25519_itomitel.pub itomitel@itomitel.local`, poi una voce `Host itomitel`
 in `~/.ssh/config`. Il Minitel va riportato in Ascii 80 col dopo il riavvio (Ripetiz. ridisegna).
@@ -176,6 +207,7 @@ in `~/.ssh/config`. Il Minitel va riportato in Ascii 80 col dopo il riavvio (Rip
 | `totem/shop.py` | client di sola lettura per `products.json` e `collections.json`, con cache su disco |
 | `totem/app.py` | schermate e navigazione (macchina a stati, indipendente dal terminale) |
 | `totem/logo.py` | logo ITOMI in ASCII (griglia 21 × 12 moduli) |
+| `totem/text.py` | da HTML a testo, caratteri non disponibili sul terminale (accenti, €), a capo |
 | `totem/terminal.py` | codifica schermo → byte ASCII e byte → tasti, con aggiornamento a righe |
 | `totem/serial_cli.py` | comandi `serial`, `monitor`, `probe`, `learn` |
 | `totem/saver.py` | screensaver: schermo pieno di `#` con il logo scavato al centro |
@@ -183,6 +215,8 @@ in `~/.ssh/config`. Il Minitel va riportato in Ascii 80 col dopo il riavvio (Rip
 | `totem/televideo.py` | lettura di RAI Televideo (solo testo) su richiesta, con cache di 2 minuti |
 | `totem/settings.py` | impostazioni modificabili dal Minitel, salvate in `settings.json` |
 | `totem/web.py`, `totem/web/index.html` | emulatore nel browser |
+| `deploy/` | servizio systemd e `update-pi.sh` |
+| `keymap.json` | mappa dei tasti di questo Minitel |
 | `tests/` | test senza hardware né rete: `python3 -m unittest discover tests` |
 
 Per cambiare le voci della home o il testo dei Credits: `HOME_ITEMS` e `CREDITS_TEXT`
@@ -190,9 +224,10 @@ in `totem/app.py`.
 
 ## Ancora da fare
 
-- Caratteri accentati sul terminale vero (ora si scrivono come `e'`, `EUR`).
-- Verificare sul terminale vero lo screensaver; se supporta il video inverso (ESC[7m), il logo in negativo
-  potrebbe essere a blocchi pieni invece che di `#` (e consumerebbe meno fosforo).
+- Provare sul terminale vero i caratteri accentati (ora si scrivono come `e'`, `EUR`).
+- Se il terminale supporta il video inverso (`ESC[7m`), il negativo dello screensaver potrebbe essere
+  a blocchi pieni invece che di `#`, consumando meno fosforo.
+- Verificare le condizioni di riutilizzo dei contenuti RAI prima di mostrare il Televideo al pubblico.
 
 ## Usarlo con un altro negozio Shopify
 
