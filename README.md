@@ -27,7 +27,7 @@ Voci e ordine sono in `HOME_ITEMS` in `totem/app.py`.
 
 | Tasto del Minitel | Cosa fa |
 |---|---|
-| **numeri** | scelgono la voce (nel Televideo si digitano le 3 cifre della pagina) |
+| **numeri** e **lettere** | scelgono la voce: negli elenchi 1-9 e poi A-J (19 per pagina, maiuscole o minuscole); nel Televideo si digitano le 3 cifre della pagina |
 | **Seguente**, freccia **→** | pagina successiva |
 | **Precedente**, freccia **←** | pagina precedente; dalla prima pagina torna indietro di una schermata |
 | **Annul.** | indietro di una schermata (nella ricerca cancella prima il testo scritto) |
@@ -41,6 +41,15 @@ Voci e ordine sono in `HOME_ITEMS` in `totem/app.py`.
 Le frecce su e giù non fanno nulla. Le schermate di lettura vanno a pagine intere: lo scorrimento per
 riga, che farebbe ridisegnare tutto lo schermo a ogni pressione (oltre 10 secondi a 1200 baud), è stato
 provato con le sequenze di cancella/inserisci riga del terminale e scartato.
+
+## Gli elenchi
+
+Catalogo, prodotti, Storie, città e guide sono elenchi a **una riga per voce**, 19 per pagina (le 19
+righe del corpo dello schermo), con l'indice **1-9 e poi A-J**: quando le voci di una pagina sono più di
+nove, la riga di suggerimento dice "Premi il numero o la lettera". Nei prodotti il prezzo è a destra
+("da 6,99EUR" se le varianti costano diverso, "offerta 9,99EUR" per un prezzo scontato, "esaurito"). I
+tasti `K`-`Z` e lo `0` non scelgono niente negli elenchi. Il codice è in `INDEX_KEYS`, `chosen()` e
+`LIST_PER_PAGE` in `totem/app.py`.
 
 ## Provarlo senza hardware
 
@@ -123,7 +132,7 @@ Due siti WordPress di ITOMI letti con l'API pubblica (`/wp-json/wp/v2/…`), sem
 indicata nella schermata:
 
 - **Voce 6, Storie di EPIC** (whatisepic.it): gli articoli della categoria *Storie*, dal più recente,
-  9 per pagina con la data; si apre un articolo e si legge a pagine (Seguente/Precedente). Sotto il titolo
+  19 per pagina con la data; si apre un articolo e si legge a pagine (Seguente/Precedente). Sotto il titolo
   e la data compare l'autore ("di Nome Cognome"), preso dal nome che WordPress gli dà.
 - **Voce 7, Guide Nerdvana** (nerdvanaguides.com): prima si sceglie la **città** (Londra, Los Angeles,
   New York, Osaka, Tokyo, con il numero di guide), poi la guida in **ordine alfabetico** (la data di

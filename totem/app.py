@@ -113,6 +113,25 @@ def pick(w: int, long: str, short: str) -> str:
     return long if w >= 80 else short
 
 
+# The choices of a list are labelled 1-9 and then A, B, C...: one line per item fills the
+# 19 rows of the body with 19 choices (1-9 and A-J).
+INDEX_KEYS = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+LIST_PER_PAGE = BODY
+
+
+def choose_hint(n_on_page: int, extra: str = "") -> str:
+    """Words for the hint line: a letter is only needed once there are more than 9 choices."""
+    words = "Premi il numero o la lettera" if n_on_page > 9 else "Premi il numero desiderato"
+    return words + extra
+
+
+def chosen(k: str, page: int, per_page: int) -> int | None:
+    """The position in the whole list picked by key k (1-9, A-J... on this page), or None
+    if k is not one of the page's index keys."""
+    pos = INDEX_KEYS.find(k.upper()) if len(k) == 1 else -1
+    return page * per_page + pos if 0 <= pos < per_page else None
+
+
 class View:
     """Base class. on_key() returns True when it handled the key."""
 
@@ -274,7 +293,7 @@ class Credits(Paged):
 
 
 class CategoryList(Paged):
-    per_page = 9
+    per_page = LIST_PER_PAGE
 
     def __init__(self, app):
         super().__init__(app)
@@ -286,17 +305,18 @@ class CategoryList(Paged):
     def screen(self):
         w = self.w
         start = self.page * self.per_page
-        body = [""]
-        for i, c in enumerate(self.items[start:start + self.per_page], 1):
+        page_items = self.items[start:start + self.per_page]
+        body = []
+        for j, c in enumerate(page_items):
             count = f"({c.count})"
-            body.append(f" {i}  {fit(sanitize(c.title), w - 8 - len(count))}".ljust(w - len(count) - 1)
+            body.append(f" {INDEX_KEYS[j]}  {fit(sanitize(c.title), w - 8 - len(count))}".ljust(w - len(count) - 1)
                         + " " + count)
-        return render(w, "CATEGORIE", body, hint="Premi il numero desiderato",
+        return render(w, "CATEGORIE", body, hint=choose_hint(len(page_items)),
                       keys=self.paging_keys(), page=(self.page, self.pages()))
 
     def on_key(self, k):
-        if k.isdigit() and k != "0":
-            i = self.page * self.per_page + int(k) - 1
+        i = chosen(k, self.page, self.per_page)
+        if i is not None:
             if i < len(self.items):
                 c, app = self.items[i], self.app
                 app.push(app.slow(c.title, lambda: ProductList(
@@ -306,7 +326,7 @@ class CategoryList(Paged):
 
 
 class ProductList(Paged):
-    per_page = 9
+    per_page = LIST_PER_PAGE
 
     def __init__(self, app, title, products: list[Product]):
         super().__init__(app)
@@ -317,19 +337,12 @@ class ProductList(Paged):
 
     @staticmethod
     def _price(p: Product) -> str:
+        """The price column: "da 6,99EUR", "esaurito", or "offerta 24,99EUR" for a sale."""
         if not p.available:
             return "esaurito"
         pre = "da " if p.price_from != p.price_to else ""
-        return sanitize(f"{pre}{money(p.price_from)}€")
-
-    @staticmethod
-    def _info(p: Product) -> str:
-        bits = [p.product_type or "Prodotto"]
-        if len(p.variants) > 1:
-            bits.append(f"{len(p.variants)} varianti")
-        if p.on_sale and p.available:
-            bits.append("IN OFFERTA")
-        return sanitize(" - ".join(bits))
+        sale = "offerta " if p.on_sale else ""
+        return sanitize(f"{sale}{pre}{money(p.price_from)}€")
 
     def screen(self):
         w = self.w
@@ -338,19 +351,18 @@ class ProductList(Paged):
                           keys=pick(w, "Annul.=torna indietro   Indice=menu iniziale",
                                     "Annul=indietro  Indice=menu"))
         start = self.page * self.per_page
-        body = [""]
-        for i, p in enumerate(self.items[start:start + self.per_page], 1):
+        page_items = self.items[start:start + self.per_page]
+        body = []
+        for j, p in enumerate(page_items):
             price = self._price(p)
             name = fit(sanitize(p.title), w - 5 - len(price))
-            body.append(f" {i}  {name}".ljust(w - len(price) - 1) + " " + price)
-            if w >= 80:  # room for a second line per product
-                body.append("    " + self._info(p))
-        return render(w, self.title.upper(), body, hint="Premi il numero desiderato",
+            body.append(f" {INDEX_KEYS[j]}  {name}".ljust(w - len(price) - 1) + " " + price)
+        return render(w, self.title.upper(), body, hint=choose_hint(len(page_items)),
                       keys=self.paging_keys(), page=(self.page, self.pages()))
 
     def on_key(self, k):
-        if k.isdigit() and k != "0":
-            i = self.page * self.per_page + int(k) - 1
+        i = chosen(k, self.page, self.per_page)
+        if i is not None:
             if i < len(self.items):
                 self.app.push(ProductDetail(self.app, self.items[i]))
             return True
@@ -415,7 +427,7 @@ def open_source(app, key: str) -> View:
 
 class CityList(Paged):
     """The categories of a WordPress site (the cities of Nerdvana), with their article counts."""
-    per_page = 9
+    per_page = LIST_PER_PAGE
     is_index = True            # what the 0 key goes back to
 
     def __init__(self, app, client: WordPressClient):
@@ -428,20 +440,21 @@ class CityList(Paged):
 
     def screen(self):
         w, start = self.w, self.page * self.per_page
-        body = [""]
-        for i, c in enumerate(self.items[start:start + self.per_page], 1):
+        page_items = self.items[start:start + self.per_page]
+        body = []
+        for j, c in enumerate(page_items):
             count = f"({c.count})"
-            body.append(f" {i}  {fit(sanitize(c.name), w - 8 - len(count))}".ljust(w - len(count) - 1)
+            body.append(f" {INDEX_KEYS[j]}  {fit(sanitize(c.name), w - 8 - len(count))}".ljust(w - len(count) - 1)
                         + " " + count)
-        return render(w, self.client.list_title, body, hint="Premi il numero desiderato",
+        return render(w, self.client.list_title, body, hint=choose_hint(len(page_items)),
                       keys=site_keys(w, self.client, with_zero=False), page=(self.page, self.pages()))
 
     def on_key(self, k):
         if k == "0":
             self.app.go_to_site_index()
             return True
-        if k.isdigit():
-            i = self.page * self.per_page + int(k) - 1
+        i = chosen(k, self.page, self.per_page)
+        if i is not None:
             if i < len(self.items):
                 c, app, client = self.items[i], self.app, self.client
                 app.push(app.slow(c.name, lambda: StoryList(
@@ -452,7 +465,7 @@ class CityList(Paged):
 
 class StoryList(Paged):
     """The articles of one category: newest first, or A-Z, as the site is set up."""
-    per_page = 9
+    per_page = LIST_PER_PAGE
 
     def __init__(self, app, client: WordPressClient, slug: str | None = None, title: str | None = None):
         super().__init__(app)
@@ -471,14 +484,16 @@ class StoryList(Paged):
             return render(w, self.title, ["", "  Nessun articolo trovato."],
                           keys=pick(w, "Annul.=torna indietro   Indice=menu iniziale",
                                     "Annul=indietro  Indice=menu"))
-        body = [""]
-        for i, p in enumerate(self.items[start:start + self.per_page], 1):
+        page_items = self.items[start:start + self.per_page]
+        body = []
+        for j, p in enumerate(page_items):
             date = p.short_date if client.show_dates else ""
             name = fit(sanitize(p.title), w - 6 - len(date))
-            body.append((f" {i}  {name}".ljust(w - len(date) - 1) + " " + date) if date else f" {i}  {name}")
+            label = INDEX_KEYS[j]
+            body.append((f" {label}  {name}".ljust(w - len(date) - 1) + " " + date) if date else f" {label}  {name}")
         return render(w, self.title, body,
-                      hint=pick(w, f"Premi il numero desiderato   (fonte: {client.domain})",
-                                "Premi il numero desiderato"),
+                      hint=pick(w, choose_hint(len(page_items), f"   (fonte: {client.domain})"),
+                                choose_hint(len(page_items))),
                       keys=site_keys(w, client, with_zero=not self.is_index),
                       page=(self.page, self.pages()))
 
@@ -486,8 +501,8 @@ class StoryList(Paged):
         if k == "0":
             self.app.go_to_site_index()
             return True
-        if k.isdigit():
-            i = self.page * self.per_page + int(k) - 1
+        i = chosen(k, self.page, self.per_page)
+        if i is not None:
             if i < len(self.items):
                 post, app, client = self.items[i], self.app, self.client
                 app.push(app.slow(post.title, lambda: StoryDetail(app, post, client)))

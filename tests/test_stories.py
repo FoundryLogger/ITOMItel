@@ -329,7 +329,8 @@ class NerdvanaTests(unittest.TestCase):
 
 # ---- the 0 key: back to the index of the site being read ----
 
-BIG = [rest_post(i, f"Storia {i:02d}", f"2026-01-{i:02d}T10:00:00", f"<p>Testo {i}.</p>") for i in range(12, 0, -1)]
+BIG = [rest_post(i, f"Storia {i:02d}", f"2026-01-{i % 28 + 1:02d}T10:00:00", f"<p>Testo {i}.</p>")
+       for i in range(30, 0, -1)]
 
 
 def big_fetch(url):
@@ -362,7 +363,7 @@ class IndexKeyTests(unittest.TestCase):
         screen = app.screen()
         self.assertTrue(screen[0].startswith("STORIE EPIC"))
         self.assertIn("1/2", screen[0])                           # the first of two pages
-        self.assertIn("Storia 12", "\n".join(screen))
+        self.assertIn("Storia 30", "\n".join(screen))
         app.key("ANNUL")                                          # one step back: the main menu
         self.assertEqual(app.screen()[0], "ITOMItel".center(80))
 
