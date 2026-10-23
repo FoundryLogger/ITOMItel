@@ -41,11 +41,16 @@ HOME_ITEMS = [
 ]
 
 CREDITS_TEXT = """\
-ITOMItel è un progetto sperimentale creato da ITOMI.studio con l'ausilio di Claude Code. La parte hardware è basata su un Raspberry Pi collegato via porta seriale a un terminale Videotel SIP Philips HCS 80/08 (Videotex/Minitel). È possibile sfogliare e ricercare il catalogo di ITOMI.shop in tempo reale grazie alla connessione Wi-Fi del Raspberry Pi, che trasforma in schermate Videotex i prodotti del sito ufficiale.
+ITOMItel è un progetto creato da ITOMI.studio con l'ausilio di Claude Code. La parte hardware è basata su un Raspberry Pi collegato via porta seriale a un terminale Videotel SIP Philips HCS 80/08 (Videotex/Minitel).
+
+È possibile sfogliare e ricercare il catalogo di ITOMI.shop in tempo reale grazie alla connessione Wi-Fi del Raspberry Pi, che trasforma in schermate Videotex i prodotti del sito ufficiale.
 
 Si ringraziano Alessandro Tullio e Michele Giorgi per la consulenza iniziale.
 
-È stato estremamente divertente sviluppare questo progetto, hardware e software. Il terminale è ora operativo all'interno dell'ITOMI Studio5 e liberamente consultabile durante gli Open Days."""
+È stato estremamente divertente sviluppare questo progetto hardware e software. Il terminale è ora operativo all'interno dell'ITOMI Studio5 e liberamente consultabile durante gli Open Days.
+
+Il progetto è open source su GitHub:
+https://github.com/itomistudio/ITOMItel"""
 
 
 def render(w: int, title: str, body: list[str], hint: str = "", keys: str = "",

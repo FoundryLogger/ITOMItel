@@ -96,9 +96,13 @@ class CreditsTests(unittest.TestCase):
         self.assertTrue(screen[0].startswith("CREDITS"))
         self.assertIn("ITOMItel", screen[0])
         text = " ".join(" ".join(screen).split())
-        for phrase in ("ITOMItel è un progetto sperimentale creato da ITOMI.studio",
+        for phrase in ("ITOMItel è un progetto creato da ITOMI.studio",
                        "Alessandro Tullio e Michele Giorgi",
-                       "liberamente consultabile durante gli Open Days."):
+                       "Philips HCS 80/08 (Videotex/Minitel)",
+                       "grazie alla connessione Wi-Fi",
+                       "liberamente consultabile durante gli Open Days.",
+                       "Il progetto è open source su GitHub:",
+                       "https://github.com/itomistudio/ITOMItel"):
             self.assertIn(phrase, text)
         self.assertEqual(app.view.pages(), 2)   # thanks on page 1, technical sheet on page 2
         self.assertNotIn("SCHEDA TECNICA", text)
