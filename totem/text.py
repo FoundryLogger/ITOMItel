@@ -64,13 +64,16 @@ def fold(s: str) -> str:
 
 class _Extractor(HTMLParser):
     BLOCK = {"p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol",
-             "table", "tr", "section", "blockquote"}
-    SKIP = {"script", "style", "head"}
+             "table", "tr", "section", "blockquote", "figure", "figcaption"}
+    HEADINGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
+    SKIP = {"script", "style", "head", "iframe", "audio", "video"}
 
-    def __init__(self):
+    def __init__(self, headings: bool = False):
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
         self.skip = 0
+        self.headings = headings      # headings in capitals, set apart by a blank line
+        self.upper = 0
 
     def handle_starttag(self, tag, attrs):
         if tag in self.SKIP:
@@ -81,22 +84,27 @@ class _Extractor(HTMLParser):
             self.parts.append("\n- ")
         elif tag in self.BLOCK:
             self.parts.append("\n")
+            if self.headings and tag in self.HEADINGS:
+                self.parts.append("\n")
+                self.upper += 1
 
     def handle_endtag(self, tag):
         if tag in self.SKIP:
             self.skip = max(0, self.skip - 1)
         elif tag in self.BLOCK:
             self.parts.append("\n")
+            if self.headings and tag in self.HEADINGS:
+                self.upper = max(0, self.upper - 1)
 
     def handle_data(self, data):
         if not self.skip:
-            self.parts.append(data)
+            self.parts.append(data.upper() if self.upper else data)
 
 
-def html_to_text(html: str) -> str:
-    parser = _Extractor()
+def html_to_text(html: str, headings: bool = False) -> str:
+    parser = _Extractor(headings)
     parser.feed(html or "")
-    lines = [re.sub(r"[ \t ]+", " ", l).strip()
+    lines = [re.sub(r"[ \t\u00a0]+", " ", l).strip()
              for l in "".join(parser.parts).split("\n")]
     text = "\n".join(lines)
     return re.sub(r"\n{3,}", "\n\n", text).strip()

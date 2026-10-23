@@ -34,13 +34,14 @@ class LogoTests(unittest.TestCase):
         self.assertIn("5  Cerca un prodotto", text)
         self.assertIn("6  Credits", text)
         self.assertIn("7  Televideo RAI", text)
+        self.assertIn("8  Storie EPIC", text)
 
     def test_home_40_stacks_logo_over_menu(self):
         screen = App(FakeShop(), width=40).screen()
         self.assertEqual({len(r) for r in screen}, {40})
         self.assertEqual(screen[2:14], logo.lines())
         self.assertEqual(screen[0], "ITOMItel".center(40))
-        self.assertLessEqual(12 + 7, BODY)
+        self.assertLessEqual(12 + 4, BODY)       # two columns of four
 
 
 class HeaderTests(unittest.TestCase):

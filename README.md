@@ -80,6 +80,18 @@ Se i tasti dovessero perdere colpi, aggiungere un resistore da 10 kΩ tra pin 10
 Durante i test erano usati 1 kΩ in serie su entrambi i fili. Con un partitore a resistori bassi
 (es. 1 kΩ + 2 kΩ) le linee crollano: evitarlo.
 
+## Storie EPIC
+
+Voce **8** del menu. Mostra gli articoli della categoria **Storie** di whatisepic.it (un sito
+WordPress di ITOMI): l'elenco dei più recenti, 9 per pagina con la data, e la lettura di ogni
+articolo a pagine (Seguente/Precedente), con titolo, data, testo e indirizzo dell'articolo.
+I dati arrivano dall'API pubblica di WordPress (`/wp-json/wp/v2/posts?categories=…`): l'elenco
+si scarica subito, il testo di un articolo solo quando lo apri. Le risposte restano 10 minuti
+in memoria e l'ultima copia sul disco (`cache/`), così le storie si leggono anche senza rete.
+Immagini, video e audio non compaiono; i titoli di paragrafo sono in maiuscolo. Per usare un
+altro sito WordPress o un'altra categoria cambia `STORIES_SITE` e `STORIES_CATEGORY` in
+`totem/app.py`. Il codice è in `totem/blog.py`.
+
 ## Televideo RAI
 
 Voce **7** del menu. Mostra le pagine di RAI Televideo nella versione "solo testo" che RAI pubblica
@@ -151,6 +163,7 @@ in `~/.ssh/config`. Il Minitel va riportato in Ascii 80 col dopo il riavvio (Rip
 | `totem/terminal.py` | codifica schermo → byte ASCII e byte → tasti, con aggiornamento a righe |
 | `totem/serial_cli.py` | comandi `serial`, `monitor`, `probe`, `learn` |
 | `totem/saver.py` | screensaver: schermo pieno di `#` con il logo scavato al centro |
+| `totem/blog.py` | articoli di una categoria WordPress (Storie EPIC) via API pubblica, con cache |
 | `totem/televideo.py` | lettura di RAI Televideo (solo testo) su richiesta, con cache di 2 minuti |
 | `totem/settings.py` | impostazioni modificabili dal Minitel, salvate in `settings.json` |
 | `totem/web.py`, `totem/web/index.html` | emulatore nel browser |

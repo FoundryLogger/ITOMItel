@@ -12,6 +12,7 @@ from __future__ import annotations
 import threading
 
 from . import logo
+from .blog import Post as StoryPost, WordPressClient
 from .settings import ORDER, SPECS, Settings
 from .shop import Product, Shop
 from .televideo import FIRST_PAGE, LAST_PAGE, SOURCE, TelevideoClient
@@ -29,6 +30,10 @@ GUIDA, RIPETIZ = "GUIDA", "RIPETIZ"
 STORE_NAME = "ITOMI"
 STORE_DOMAIN = "itomi.shop"
 
+# The "Storie" of the ITOMI editorial site: articles of one WordPress category.
+STORIES_SITE = "https://www.whatisepic.it"
+STORIES_CATEGORY = "storie"
+
 # (label, kind, argument) for the shortcuts on the home screen.
 HOME_ITEMS = [
     ("Sfoglia le categorie", "categories", None),
@@ -38,7 +43,12 @@ HOME_ITEMS = [
     ("Cerca un prodotto", "search", None),
     ("Credits", "credits", None),
     ("Televideo RAI", "televideo", None),
+    ("Storie EPIC", "stories", None),
 ]
+
+# Shorter names for the 40-column menu, where two columns have to fit side by side.
+SHORT_LABELS = {"categories": "Categorie", "search": "Cerca", "televideo": "Televideo",
+                "collection": None, "new": None, "credits": None, "stories": None}
 
 CREDITS_TEXT = """\
 ITOMItel è un progetto creato da ITOMI.studio con l'ausilio di Claude Code. La parte hardware è basata su un Raspberry Pi collegato via porta seriale a un terminale Videotel SIP Philips HCS 80/08 (Videotex/Minitel).
@@ -157,21 +167,21 @@ class Home(View):
         self.items = list(HOME_ITEMS)
 
     def screen(self):
-        menu = [f"{i}  {label}" for i, (label, _, _) in enumerate(self.items, 1)]
-        if self.w >= 80:
-            # Logo centred (42 columns), the menu below it in two centred columns.
-            art = logo.lines(compact=False)
-            pad = " " * ((self.w - len(art[0])) // 2)
-            half = (len(menu) + 1) // 2
-            left, right = menu[:half], menu[half:]
-            wl, gap = max(map(len, left)), 8
-            wr = max(map(len, right)) if right else 0
-            menu_pad = " " * ((self.w - (wl + gap + wr)) // 2)
-            rows = [menu_pad + left[i].ljust(wl) + (" " * gap + right[i] if i < len(right) else "")
-                    for i in range(len(left))]
-            body = [pad + row for row in art] + [""] + rows
-        else:
-            body = logo.lines() + [f"  {m}" for m in menu]      # 12 + 7 rows = the whole body
+        wide = self.w >= 80
+        menu = []
+        for i, (label, kind, _) in enumerate(self.items, 1):
+            menu.append(f"{i}  {label if wide else (SHORT_LABELS.get(kind) or label)}")
+        half = (len(menu) + 1) // 2
+        left, right = menu[:half], menu[half:]
+        wl, gap = max(map(len, left)), 8 if wide else 3
+        wr = max(map(len, right)) if right else 0
+        art = logo.lines(compact=not wide)
+        # Logo centred (42 columns on 80, 40 on 40), the menu below it in two centred columns.
+        pad = " " * ((self.w - len(art[0])) // 2)
+        menu_pad = " " * max(0, (self.w - (wl + gap + wr)) // 2)
+        rows = [menu_pad + left[i].ljust(wl) + (" " * gap + right[i] if i < len(right) else "")
+                for i in range(len(left))]
+        body = [pad + row for row in art] + ([""] if wide else []) + rows
         keys = "Guida=aiuto"
         return render(self.w, "", body, hint="Premi il numero desiderato",
                       keys=keys.ljust(self.w - len(STORE_DOMAIN)) + STORE_DOMAIN)
@@ -195,6 +205,8 @@ class Home(View):
                 self.app.push(Credits(self.app))
             elif kind == "televideo":
                 app.push(app.slow(label, lambda: Televideo(app)))
+            elif kind == "stories":
+                app.push(app.slow(label, lambda: StoryList(app)))
             return True
         return False
 
@@ -367,6 +379,70 @@ class ProductDetail(Paged):
         start = self.page * BODY
         return render(self.w, self.p.product_type or "PRODOTTO",
                       self.lines[start:start + BODY], keys=self.paging_keys(),
+                      page=(self.page, self.pages()))
+
+
+class StoryList(Paged):
+    """The articles of the Storie category, newest first."""
+    per_page = 9
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.items: list[StoryPost] = app.stories.posts()
+
+    def total(self):
+        return len(self.items)
+
+    def screen(self):
+        w, start = self.w, self.page * self.per_page
+        if not self.items:
+            return render(w, "STORIE EPIC", ["", "  Nessuna storia trovata."],
+                          keys=pick(w, "Annul.=torna indietro   Indice=menu iniziale",
+                                    "Annul=indietro  Indice=menu"))
+        body = [""]
+        for i, p in enumerate(self.items[start:start + self.per_page], 1):
+            date = p.short_date
+            name = fit(sanitize(p.title), w - 6 - len(date))
+            body.append(f" {i}  {name}".ljust(w - len(date) - 1) + " " + date)
+        return render(w, "STORIE EPIC", body,
+                      hint=pick(w, f"Premi il numero desiderato   (fonte: {self.app.stories.domain})",
+                                "Premi il numero desiderato"),
+                      keys=self.paging_keys(), page=(self.page, self.pages()))
+
+    def on_key(self, k):
+        if k.isdigit() and k != "0":
+            i = self.page * self.per_page + int(k) - 1
+            if i < len(self.items):
+                post, app = self.items[i], self.app
+                app.push(app.slow(post.title, lambda: StoryDetail(app, post)))
+            return True
+        return super().on_key(k)
+
+
+class StoryDetail(Paged):
+    """One article: title, date and text, paged."""
+
+    def __init__(self, app, post: StoryPost):
+        super().__init__(app)
+        self.post = post
+        article = app.stories.article(post.id)
+        w = self.w
+        self.lines = [("  " + l).rstrip() for l in wrap(sanitize(post.title.upper()), w - 4)]
+        self.lines += ["  " + post.long_date, ""]
+        if article and article.text:
+            self.lines += [("  " + l).rstrip() for l in wrap(sanitize(article.text), w - 4)]
+        else:
+            self.lines += ["  Articolo non disponibile."]
+        if post.link:
+            self.lines += ["", "  " + sanitize(post.link.replace("https://", "").replace("http://", ""))]
+
+    def total(self):
+        return len(self.lines)
+
+    def screen(self):
+        start = self.page * BODY
+        return render(self.w, "STORIA", self.lines[start:start + BODY],
+                      hint=f"Fonte: {self.app.stories.domain}", keys=self.paging_keys(),
                       page=(self.page, self.pages()))
 
 
@@ -550,9 +626,11 @@ class SettingsView(View):
 class App:
     def __init__(self, shop: Shop, width: int = 80, on_loading=None,
                  loading_delay: float = 0.5, settings: Settings | None = None,
-                 televideo: TelevideoClient | None = None):
+                 televideo: TelevideoClient | None = None, stories: WordPressClient | None = None):
         self.shop = shop
         self.tv = televideo or TelevideoClient()
+        self.stories = stories or WordPressClient(STORIES_SITE, STORIES_CATEGORY,
+                                                  cache_dir=getattr(shop, "cache_dir", None))
         self.w = width
         self.settings = settings or Settings()   # in memory unless the runner gives a file
         # Called with a screen when a fetch takes longer than loading_delay.
