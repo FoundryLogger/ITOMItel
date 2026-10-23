@@ -43,7 +43,7 @@ class CycleTests(unittest.TestCase):
             for rows, pause in cycle(width):
                 self.assertEqual(len(rows), 24)
                 self.assertEqual({len(r) for r in rows}, {width})
-                self.assertGreater(pause, 0)
+                self.assertGreaterEqual(pause, 0)
 
     def test_it_starts_and_ends_blank_and_builds_one_row_at_a_time(self):
         frames = cycle(80)
@@ -72,6 +72,30 @@ class CycleTests(unittest.TestCase):
             self.assertEqual(t.rows(), [r.rstrip() for r in rows])
             prev, total = rows, total + len(data)
         self.assertLess(total * 10 / 1200, 30)       # the whole cycle in under 30 s at 1200 baud
+
+
+class NoPauseBetweenRoundsTests(unittest.TestCase):
+    def test_the_last_frame_has_no_pause_and_the_default_cycle_has_no_blank_wait(self):
+        frames = cycle(80)
+        self.assertEqual(frames[-1][1], 0.0)
+        waits = [pause for rows, pause in frames if not any(r.strip() for r in rows)]
+        self.assertLessEqual(max(waits), 1.0)         # only the 1 s of the very first blank frame
+
+    def test_when_it_loops_the_next_frame_is_the_first_row_straight_away(self):
+        s = Screensaver(80, after=1, step=1, hold=5)
+        n, now, drawn = len(s.frames), 1.0, []
+        while len(drawn) < n + 2:
+            f = s.tick(now, 0)
+            if f is not None:
+                drawn.append((now, sum(1 for r in f if r.strip())))
+            now += 0.25
+        # frames: ... last (blank) at index n-1, then the second round starts with ONE row
+        t_blank, filled_blank = drawn[n - 1]
+        t_next, filled_next = drawn[n]
+        self.assertEqual((filled_blank, filled_next), (0, 1))
+        self.assertLessEqual(t_next - t_blank, 0.25)    # no pause: the very next tick
+        # and the second round does not begin with the blank start frame again
+        self.assertEqual(drawn[n + 1][1], 2)
 
 
 class ScreensaverClockTests(unittest.TestCase):

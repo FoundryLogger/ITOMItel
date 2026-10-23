@@ -4,9 +4,10 @@
 blank, and everything else, all the way to the edges, is filled. The logo is centred.
 
 The cycle is a list of (screen, pause) pairs: blank, then the filled screen appearing
-one row at a time from the top, a long hold, the screen emptying from the bottom, and a
-pause on a blank screen. Row by row suits a 1200 baud line: each row is one write, so
-the construction is visible without any extra delay.
+one row at a time from the top, a long hold, and the screen emptying from the bottom.
+When the screen is empty the building starts again at once, with no pause in between.
+Row by row suits a 1200 baud line: each row is one write, so the construction is
+visible without any extra delay.
 
 Screensaver is the small state machine that decides, from the clock alone,
 which frame to draw next, so the same logic can be tested without hardware.
@@ -38,8 +39,10 @@ def negative_screen(width: int = 80, ink: str = "#") -> list[str]:
 
 
 def cycle(width: int = 80, ink: str = "#", step: float = 0.2, hold: float = 30.0,
-          gap: float = 20.0) -> list[tuple[list[str], float]]:
-    """(screen, seconds to wait before the next frame) for one full cycle."""
+          gap: float = 0.0) -> list[tuple[list[str], float]]:
+    """(screen, seconds to wait before the next frame) for one full cycle.
+    The first frame is the blank screen that starts the screensaver; when it loops,
+    Screensaver skips it, so the last (blank) frame is followed by the first row."""
     full = negative_screen(width, ink)
     blank = " " * width
 
@@ -87,7 +90,9 @@ class Screensaver:
         if now < self._due:
             return None
         rows, pause = self.frames[self._i]
-        self._i = (self._i + 1) % len(self.frames)
+        # After the last frame go back to frame 1: frame 0 is only the blank start,
+        # and the screen is already blank, so the next round begins with no pause.
+        self._i = self._i + 1 if self._i + 1 < len(self.frames) else 1
         self._due = now + pause
         return rows
 

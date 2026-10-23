@@ -101,7 +101,7 @@ che l'uso sia consentito. Se vuoi disattivare la funzione, togli la voce `Televi
 
 Dopo 5 minuti senza tasti il Minitel riempie **tutto lo schermo di `#`** e lascia **vuoto solo il logo
 ITOMI**, al centro (il logo è "scavato" nel riempimento). Lo schermo si riempie riga per riga dall'alto;
-resta fermo per 30 secondi, poi si svuota dal basso e rimane vuoto per 20 secondi, in ciclo. Un tasto
+resta fermo per 30 secondi, poi si svuota dal basso e **ricomincia subito a riempirsi**, senza pause a schermo vuoto, in ciclo. Un tasto
 qualsiasi lo interrompe e riporta la schermata di prima; **quel tasto non vale come comando**.
 A 1200 baud la costruzione richiede circa 20 secondi (uno schermo pieno sono quasi 2 KB). Si regola
 dalla schermata Impostazioni (vedi sotto) o con `--saver SECONDI` (0 = mai) e `--saver-ink CARATTERE`

@@ -290,12 +290,14 @@
     statusEl.textContent = "";
     try {
       const r = await call(`/api/saver?sid=${sid}&width=${width}`);
+      let first = 0;                                    // frame 0 is only the blank start
       while (saverActive && run === saverRun) {
-        for (const f of r.frames) {
+        for (let i = first; i < r.frames.length; i++) {
           if (!saverActive || run !== saverRun) return;
-          draw(f.rows, true);
-          await sleep(Math.min(f.pause * 1000, 8000));   // the real hold is longer
+          draw(r.frames[i].rows, true);
+          await sleep(Math.min(r.frames[i].pause * 1000, 8000));   // the real hold is longer
         }
+        first = 1;                                      // then straight on: no pause between rounds
       }
     } catch (e) { saverActive = false; }
   }
