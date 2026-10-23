@@ -86,10 +86,21 @@ Dopo 5 minuti senza tasti il Minitel mostra il logo ITOMI **in negativo** (il lo
 campo di `#`), centrato e costruito riga per riga: fermo per 30 secondi, poi si cancella dal basso e
 lo schermo resta vuoto per 20 secondi, in ciclo. Un tasto qualsiasi lo interrompe e riporta la
 schermata di prima; **quel tasto non vale come comando**. Un ciclo completo costa circa 1,2 KB (10 s
-di trasmissione a 1200 baud). Opzioni di `serial`: `--saver SECONDI` (default 300, 0 = mai) e
-`--saver-ink CARATTERE` per cambiare il riempimento. Dopo 2 minuti di inattività il totem torna
+di trasmissione a 1200 baud). Si regola dalla schermata Impostazioni (vedi sotto) o con
+`--saver SECONDI` (0 = mai) e `--saver-ink CARATTERE` all'avvio. Dopo 2 minuti di inattività il totem torna
 prima alla home (`--idle`). Nell'emulatore web c'è il menu "Screensaver" e il pulsante
 "Prova screensaver". Il codice è in `totem/saver.py`.
+
+## Impostazioni
+
+Dal Minitel: **Guida → 1 (Impostazioni)**. Ogni numero porta l'impostazione al valore successivo
+(in giro, poi ricomincia): 1 screensaver dopo 1 / 5 / 10 minuti o mai, 2 ritorno alla home dopo
+1 / 2 / 5 minuti o mai, 3 carattere del logo (`# @ X * + O`), 4 durata del logo fermo (15 s, 30 s,
+1 min, 2 min). I cambi valgono subito e restano salvati in `settings.json` (nella cartella del
+programma, non è nel repository) anche dopo lo spegnimento del Pi. Le opzioni `--saver`, `--idle`
+e `--saver-ink` di `serial` servono solo come valore di partenza; con `--settings FILE` si sceglie
+un altro file. Nell'emulatore web la scelta dello screensaver segue quella delle Impostazioni.
+Il codice è in `totem/settings.py`.
 
 ## Avvio automatico sul Raspberry Pi
 
@@ -115,6 +126,7 @@ il Pi, il tasto Ripetiz. ridisegna tutta la schermata.
 | `totem/terminal.py` | codifica schermo → byte ASCII e byte → tasti, con aggiornamento a righe |
 | `totem/serial_cli.py` | comandi `serial`, `monitor`, `probe`, `learn` |
 | `totem/saver.py` | screensaver: logo in negativo costruito a righe |
+| `totem/settings.py` | impostazioni modificabili dal Minitel, salvate in `settings.json` |
 | `totem/web.py`, `totem/web/index.html` | emulatore nel browser |
 | `tests/` | test senza hardware né rete: `python3 -m unittest discover tests` |
 

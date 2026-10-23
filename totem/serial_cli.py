@@ -15,6 +15,7 @@ import time
 
 from .app import App, INDICE, RIPETIZ
 from .saver import Screensaver
+from .settings import Settings
 from .shop import Shop
 from .text import set_ascii_only
 from .terminal import (KEY_NAMES, KeyDecoder, PROFILES, SerialTerminal, load_keymap,
@@ -112,7 +113,9 @@ def cmd_probe(args) -> None:
 def cmd_serial(args) -> None:
     set_ascii_only(True)   # accents and euro are spelled out before the layout is computed
     shop = Shop(args.store, cache_dir=args.cache)
-    app = App(shop, width=args.width, loading_delay=args.loading_delay)
+    settings = Settings(args.settings, saver_after=args.saver, idle_after=args.idle,
+                        ink=args.saver_ink)
+    app = App(shop, width=args.width, loading_delay=args.loading_delay, settings=settings)
     term = SerialTerminal(_open(args), args.profile, 0, args.baud)
     app.on_loading = lambda rows: term.try_draw(rows)
     parity = {"E": "pari", "O": "dispari", "N": "nessuna"}[args.parity]
@@ -123,12 +126,13 @@ def cmd_serial(args) -> None:
     secs = term.try_draw(app.screen(), full=True)
     print(f"[disegno schermata: ~{secs:.1f}s]", file=sys.stderr)
     last = time.monotonic()
-    saver = Screensaver(args.width, args.saver, args.saver_ink)
+    saver = Screensaver(args.width, settings.saver_after, settings.ink, hold=settings.hold)
     try:
         while True:
             data = term.read()
             keys = decoder.feed(data) if data else decoder.flush()
             now = time.monotonic()
+            saver.configure(settings.saver_after, settings.ink, settings.hold)   # live changes
             if keys and saver.wake():
                 # The key that wakes the screensaver is not a command: just bring back
                 # the screen that was showing.
@@ -137,7 +141,7 @@ def cmd_serial(args) -> None:
                 secs = term.try_draw(app.screen(), full=True)
                 print(f"[disegno: ~{secs:.1f}s]", file=sys.stderr)
                 continue
-            idle = now - last > args.idle and args.idle > 0
+            idle = settings.idle_after > 0 and now - last > settings.idle_after
             if not keys and idle and len(app.stack) > 1 and not saver.active:
                 keys = [INDICE]
             if not keys:

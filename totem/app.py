@@ -12,6 +12,7 @@ from __future__ import annotations
 import threading
 
 from . import logo
+from .settings import ORDER, SPECS, Settings
 from .shop import Product, Shop
 from .text import fit, money, sanitize, wrap
 
@@ -397,11 +398,52 @@ HELP = [
 ]
 
 
+class Guide(View):
+    """The Guida screen: what the keys do, and the way into Impostazioni."""
+
+    def screen(self):
+        body = HELP + ["", "  1  Impostazioni"]
+        return render(self.w, "GUIDA", body, hint="Premi 1 per le impostazioni",
+                      keys=pick(self.w, "Annul.=torna indietro   Indice=menu iniziale",
+                                "Annul=indietro  Indice=menu"))
+
+    def on_key(self, k):
+        if k == "1":
+            self.app.push(SettingsView(self.app))
+            return True
+        return False
+
+
+class SettingsView(View):
+    """Impostazioni: press a number to move that setting to its next value."""
+
+    def screen(self):
+        w, settings = self.w, self.app.settings
+        body = [""]
+        for i, key in enumerate(ORDER, 1):
+            label = SPECS[key][0] if w >= 80 else SPECS[key][1]
+            value = settings.text(key)
+            head = f"  {i}  {label} "
+            body.append(head.ljust(w - 2 - len(value) - 1, ".") + " " + value)
+        body += ["", "  Premi il numero per cambiare il valore.",
+                 "  Le impostazioni restano salvate anche dopo lo spegnimento."]
+        return render(w, "IMPOSTAZIONI", body, hint="Premi il numero da cambiare",
+                      keys=pick(w, "Annul.=torna alla guida   Indice=menu iniziale",
+                                "Annul=indietro  Indice=menu"))
+
+    def on_key(self, k):
+        if k.isdigit() and 1 <= int(k) <= len(ORDER):
+            self.app.settings.cycle(ORDER[int(k) - 1])
+            return True
+        return False
+
+
 class App:
     def __init__(self, shop: Shop, width: int = 80, on_loading=None,
-                 loading_delay: float = 0.5):
+                 loading_delay: float = 0.5, settings: Settings | None = None):
         self.shop = shop
         self.w = width
+        self.settings = settings or Settings()   # in memory unless the runner gives a file
         # Called with a screen when a fetch takes longer than loading_delay.
         self.on_loading = on_loading
         self.loading_delay = loading_delay
@@ -468,7 +510,8 @@ class App:
             self.shop.refresh()
             self._collections = None
         elif k == GUIDA:
-            self.push(Message(self, "GUIDA", HELP))
+            if not isinstance(self.view, (Guide, SettingsView)):
+                self.push(Guide(self))
         elif self.view.on_key(k):
             pass
         elif k in (ANNUL, PRECEDENTE):

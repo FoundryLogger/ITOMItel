@@ -49,14 +49,18 @@ def serial_main(cmd: str) -> None:
                         help="terminal control codes (ansi works on the HCS 80/08)")
         ap.add_argument("--width", type=int, default=80, choices=(40, 80),
                         help="columns of the terminal's Ascii mode")
-        ap.add_argument("--idle", type=int, default=120,
-                        help="seconds of inactivity before going back to the menu (0 = never)")
+        ap.add_argument("--idle", type=int, default=None,
+                        help="seconds of inactivity before going back to the menu (0 = never); "
+                             "default: the saved setting (120)")
         ap.add_argument("--loading-delay", type=float, default=0.5,
                         help="seconds before the loading screen appears (0 = always)")
-        ap.add_argument("--saver", type=int, default=300,
-                        help="seconds of inactivity before the screensaver starts (0 = never)")
-        ap.add_argument("--saver-ink", default="#",
-                        help="character that fills the negative logo (default #)")
+        ap.add_argument("--saver", type=int, default=None,
+                        help="seconds of inactivity before the screensaver starts (0 = never); "
+                             "default: the saved setting (300)")
+        ap.add_argument("--saver-ink", default=None,
+                        help="character that fills the negative logo (default: the saved setting, #)")
+        ap.add_argument("--settings", default="settings.json",
+                        help="where the Impostazioni screen saves its values")
         ap.add_argument("--full", action="store_true",
                         help="always redraw the whole screen")
     args = ap.parse_args(sys.argv[2:])

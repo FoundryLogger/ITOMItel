@@ -126,6 +126,7 @@
         <option value="20">Dopo 20 s</option>
         <option value="60">Dopo 1 minuto</option>
         <option value="300">Dopo 5 minuti</option>
+        <option value="600">Dopo 10 minuti</option>
       </select>
     </label>
     <button id="saverNow" type="button">Prova screensaver</button>
@@ -236,7 +237,14 @@
     return res.json();
   }
 
+  let lastSaverSetting = null;
   function handle(r, instant) {
+    // The Impostazioni screen of the terminal drives the screensaver delay here too.
+    if (r.settings && r.settings.saver_after !== lastSaverSetting) {
+      lastSaverSetting = r.settings.saver_after;
+      const opt = [...$("saver").options].find((o) => Number(o.value) === lastSaverSetting);
+      if (opt) { $("saver").value = opt.value; store.set("itomitel.saver", opt.value); armSaver(); }
+    }
     draw(r.rows, instant);
     statusEl.textContent = r.busy ? "Attendere: il terminale sta caricando…" : "";
     if (r.busy && !polling) poll();
@@ -281,7 +289,7 @@
     const run = ++saverRun;
     statusEl.textContent = "";
     try {
-      const r = await call(`/api/saver?width=${width}`);
+      const r = await call(`/api/saver?sid=${sid}&width=${width}`);
       while (saverActive && run === saverRun) {
         for (const f of r.frames) {
           if (!saverActive || run !== saverRun) return;

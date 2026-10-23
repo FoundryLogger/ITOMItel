@@ -68,11 +68,22 @@ class Screensaver:
     until wake() is called. after <= 0 disables it."""
 
     def __init__(self, width: int = 80, after: float = 300.0, ink: str = "#", **timing):
-        self.after = after
+        self.width, self.after, self.ink, self.timing = width, after, ink, timing
         self.frames = cycle(width, ink, **timing) if after > 0 else []
         self.active = False
         self._i = 0
         self._due = 0.0
+
+    def configure(self, after: float, ink: str, hold: float) -> None:
+        """Apply new settings while the totem runs (Impostazioni screen)."""
+        changed = ink != self.ink or hold != self.timing.get("hold", 30.0) or (after > 0 and not self.frames)
+        self.after, self.ink = after, ink
+        self.timing = {**self.timing, "hold": hold}
+        if after <= 0:
+            self.frames, self.active = [], False
+        elif changed:
+            self.frames = cycle(self.width, ink, **self.timing)
+            self._i = 0
 
     def tick(self, now: float, last_activity: float) -> list[str] | None:
         """The next screen to draw at time `now`, or None if nothing is due."""

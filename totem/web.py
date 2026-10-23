@@ -6,7 +6,7 @@ phosphor monitor and sends key presses back.
 
     GET  /                          the emulator page
     GET  /api/screen?sid=..&width=  current screen
-    GET  /api/saver?width=          the screensaver frames (rows + pause)
+    GET  /api/saver?sid=..&width=   the screensaver frames (rows + pause), with this session's settings
     POST /api/key  {sid, width, key}  press a key, get the new screen
 
 A slow fetch answers with the loading screen and busy=true; the page then
@@ -55,7 +55,10 @@ class Session:
     def snapshot(self) -> dict:
         busy = self.busy()
         rows = self.loading if busy and self.loading else self.app.screen()
-        return {"rows": rows, "busy": busy, "width": self.app.w}
+        st = self.app.settings
+        return {"rows": rows, "busy": busy, "width": self.app.w,
+                "settings": {"saver_after": st.saver_after, "idle_after": st.idle_after,
+                             "ink": st.ink, "hold": st.hold}}
 
 
 class Sessions:
@@ -105,7 +108,9 @@ def make_server(shop: Shop, host: str = "127.0.0.1", port: int = 8765,
             elif url.path == "/api/saver":
                 q = parse_qs(url.query)
                 width = int(q.get("width", ["80"])[0] or 80)
-                frames = cycle(width if width in (40, 80) else 80)
+                width = width if width in (40, 80) else 80
+                st = sessions.get(q.get("sid", ["default"])[0], width).app.settings
+                frames = cycle(width, st.ink, hold=st.hold)
                 self._json({"frames": [{"rows": rows, "pause": pause} for rows, pause in frames]})
             else:
                 self._send(404, b"not found", "text/plain")

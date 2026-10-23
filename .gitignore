@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 cache/
 .venv/
+settings.json
+settings.tmp
