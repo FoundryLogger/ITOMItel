@@ -12,7 +12,7 @@ from __future__ import annotations
 import threading
 
 from . import logo
-from .blog import Post as StoryPost, WordPressClient
+from .blog import Category, Post as StoryPost, WordPressClient
 from .settings import ORDER, SPECS, Settings
 from .shop import Product, Shop
 from .televideo import FIRST_PAGE, LAST_PAGE, SOURCE, TelevideoClient
@@ -30,9 +30,14 @@ GUIDA, RIPETIZ = "GUIDA", "RIPETIZ"
 STORE_NAME = "ITOMI"
 STORE_DOMAIN = "itomi.shop"
 
-# The "Storie" of the ITOMI editorial site: articles of one WordPress category.
-STORIES_SITE = "https://www.whatisepic.it"
-STORIES_CATEGORY = "storie"
+# Sites read through the WordPress API, key -> how they are shown. "category" is the one
+# category to list; None means the reader first picks one (a city, for Nerdvana).
+WP_SOURCES = {
+    "stories": dict(site="https://www.whatisepic.it", category="storie", sort="date",
+                    show_dates=True, list_title="STORIE EPIC", detail_title="STORIA"),
+    "nerdvana": dict(site="https://nerdvanaguides.com", category=None, sort="title",
+                     show_dates=False, list_title="NERDVANA", detail_title="GUIDA"),
+}
 
 # (label, kind, argument) for the shortcuts on the home screen.
 HOME_ITEMS = [
@@ -44,11 +49,13 @@ HOME_ITEMS = [
     ("Credits", "credits", None),
     ("Televideo RAI", "televideo", None),
     ("Storie EPIC", "stories", None),
+    ("Nerdvana Guides", "nerdvana", None),
 ]
 
 # Shorter names for the 40-column menu, where two columns have to fit side by side.
 SHORT_LABELS = {"categories": "Categorie", "search": "Cerca", "televideo": "Televideo",
-                "collection": None, "new": None, "credits": None, "stories": None}
+                "collection": None, "new": None, "credits": None, "stories": None,
+                "nerdvana": "Nerdvana"}
 
 CREDITS_TEXT = """\
 ITOMItel è un progetto creato da ITOMI.studio con l'ausilio di Claude Code. La parte hardware è basata su un Raspberry Pi collegato via porta seriale a un terminale Videotel SIP Philips HCS 80/08 (Videotex/Minitel).
@@ -205,8 +212,8 @@ class Home(View):
                 self.app.push(Credits(self.app))
             elif kind == "televideo":
                 app.push(app.slow(label, lambda: Televideo(app)))
-            elif kind == "stories":
-                app.push(app.slow(label, lambda: StoryList(app)))
+            elif kind in WP_SOURCES:
+                app.push(app.slow(label, lambda: open_source(app, kind)))
             return True
         return False
 
@@ -382,30 +389,71 @@ class ProductDetail(Paged):
                       page=(self.page, self.pages()))
 
 
-class StoryList(Paged):
-    """The articles of the Storie category, newest first."""
+def open_source(app, key: str) -> View:
+    """The first screen of a WordPress source: the articles of its one category,
+    or the list of categories (cities) when the reader has to pick one."""
+    client = app.sources[key]
+    return StoryList(app, client, client.category) if client.category else CityList(app, client)
+
+
+class CityList(Paged):
+    """The categories of a WordPress site (the cities of Nerdvana), with their article counts."""
     per_page = 9
 
-    def __init__(self, app):
+    def __init__(self, app, client: WordPressClient):
         super().__init__(app)
-        self.items: list[StoryPost] = app.stories.posts()
+        self.client = client
+        self.items: list[Category] = client.categories()
 
     def total(self):
         return len(self.items)
 
     def screen(self):
         w, start = self.w, self.page * self.per_page
+        body = [""]
+        for i, c in enumerate(self.items[start:start + self.per_page], 1):
+            count = f"({c.count})"
+            body.append(f" {i}  {fit(sanitize(c.name), w - 8 - len(count))}".ljust(w - len(count) - 1)
+                        + " " + count)
+        return render(w, self.client.list_title, body, hint="Premi il numero desiderato",
+                      keys=self.paging_keys(), page=(self.page, self.pages()))
+
+    def on_key(self, k):
+        if k.isdigit() and k != "0":
+            i = self.page * self.per_page + int(k) - 1
+            if i < len(self.items):
+                c, app, client = self.items[i], self.app, self.client
+                app.push(app.slow(c.name, lambda: StoryList(
+                    app, client, c.slug, f"{client.list_title} - {c.name.upper()}")))
+            return True
+        return super().on_key(k)
+
+
+class StoryList(Paged):
+    """The articles of one category: newest first, or A-Z, as the site is set up."""
+    per_page = 9
+
+    def __init__(self, app, client: WordPressClient, slug: str | None = None, title: str | None = None):
+        super().__init__(app)
+        self.client, self.title = client, title or client.list_title
+        self.items: list[StoryPost] = client.posts(slug)
+
+    def total(self):
+        return len(self.items)
+
+    def screen(self):
+        w, start, client = self.w, self.page * self.per_page, self.client
         if not self.items:
-            return render(w, "STORIE EPIC", ["", "  Nessuna storia trovata."],
+            return render(w, self.title, ["", "  Nessun articolo trovato."],
                           keys=pick(w, "Annul.=torna indietro   Indice=menu iniziale",
                                     "Annul=indietro  Indice=menu"))
         body = [""]
         for i, p in enumerate(self.items[start:start + self.per_page], 1):
-            date = p.short_date
+            date = p.short_date if client.show_dates else ""
             name = fit(sanitize(p.title), w - 6 - len(date))
-            body.append(f" {i}  {name}".ljust(w - len(date) - 1) + " " + date)
-        return render(w, "STORIE EPIC", body,
-                      hint=pick(w, f"Premi il numero desiderato   (fonte: {self.app.stories.domain})",
+            body.append((f" {i}  {name}".ljust(w - len(date) - 1) + " " + date) if date else f" {i}  {name}")
+        return render(w, self.title, body,
+                      hint=pick(w, f"Premi il numero desiderato   (fonte: {client.domain})",
                                 "Premi il numero desiderato"),
                       keys=self.paging_keys(), page=(self.page, self.pages()))
 
@@ -413,22 +461,22 @@ class StoryList(Paged):
         if k.isdigit() and k != "0":
             i = self.page * self.per_page + int(k) - 1
             if i < len(self.items):
-                post, app = self.items[i], self.app
-                app.push(app.slow(post.title, lambda: StoryDetail(app, post)))
+                post, app, client = self.items[i], self.app, self.client
+                app.push(app.slow(post.title, lambda: StoryDetail(app, post, client)))
             return True
         return super().on_key(k)
 
 
 class StoryDetail(Paged):
-    """One article: title, date and text, paged."""
+    """One article: title, date (if it means anything) and text, paged."""
 
-    def __init__(self, app, post: StoryPost):
+    def __init__(self, app, post: StoryPost, client: WordPressClient):
         super().__init__(app)
-        self.post = post
-        article = app.stories.article(post.id)
+        self.post, self.client = post, client
+        article = client.article(post.id)
         w = self.w
         self.lines = [("  " + l).rstrip() for l in wrap(sanitize(post.title.upper()), w - 4)]
-        self.lines += ["  " + post.long_date, ""]
+        self.lines += (["  " + post.long_date, ""] if client.show_dates else [""])
         if article and article.text:
             self.lines += [("  " + l).rstrip() for l in wrap(sanitize(article.text), w - 4)]
         else:
@@ -441,8 +489,8 @@ class StoryDetail(Paged):
 
     def screen(self):
         start = self.page * BODY
-        return render(self.w, "STORIA", self.lines[start:start + BODY],
-                      hint=f"Fonte: {self.app.stories.domain}", keys=self.paging_keys(),
+        return render(self.w, self.client.detail_title, self.lines[start:start + BODY],
+                      hint=f"Fonte: {self.client.domain}", keys=self.paging_keys(),
                       page=(self.page, self.pages()))
 
 
@@ -626,11 +674,15 @@ class SettingsView(View):
 class App:
     def __init__(self, shop: Shop, width: int = 80, on_loading=None,
                  loading_delay: float = 0.5, settings: Settings | None = None,
-                 televideo: TelevideoClient | None = None, stories: WordPressClient | None = None):
+                 televideo: TelevideoClient | None = None, stories: WordPressClient | None = None,
+                 nerdvana: WordPressClient | None = None):
         self.shop = shop
         self.tv = televideo or TelevideoClient()
-        self.stories = stories or WordPressClient(STORIES_SITE, STORIES_CATEGORY,
-                                                  cache_dir=getattr(shop, "cache_dir", None))
+        cache = getattr(shop, "cache_dir", None)
+        given = {"stories": stories, "nerdvana": nerdvana}
+        self.sources = {key: given[key] or WordPressClient(cache_dir=cache, **cfg)
+                        for key, cfg in WP_SOURCES.items()}
+        self.stories = self.sources["stories"]          # kept as a name of its own: Storie EPIC
         self.w = width
         self.settings = settings or Settings()   # in memory unless the runner gives a file
         # Called with a screen when a fetch takes longer than loading_delay.

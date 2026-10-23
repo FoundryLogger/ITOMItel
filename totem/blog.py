@@ -1,9 +1,10 @@
 """Articles of one category of a WordPress site, read through its public REST API.
 
-Used for the "Storie" of whatisepic.it (category slug "storie"): the list comes
-from /wp-json/wp/v2/posts?categories=<id>, the text of an article is fetched
-only when somebody opens it. Answers are cached in memory and on disk, so the
-stories stay readable if the network drops.
+Used for the "Storie" of whatisepic.it (one category, "storie") and for the guides
+of nerdvanaguides.com (one category per city): the list comes from
+/wp-json/wp/v2/posts?categories=<id>, the text of an article is fetched only when
+somebody opens it. Answers are cached in memory and on disk, so the articles stay
+readable if the network drops.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-from .text import html_to_text
+from .text import fold, html_to_text
 
 MONTHS = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio",
           "agosto", "settembre", "ottobre", "novembre", "dicembre"]
@@ -44,6 +45,14 @@ class Post:
         return f"{int(d)} {MONTHS[int(m) - 1]} {y}"
 
 
+@dataclass
+class Category:
+    id: int
+    name: str
+    slug: str
+    count: int
+
+
 def _post(d: dict) -> Post:
     return Post(
         id=d["id"], date=d.get("date", "1970-01-01T00:00:00"),
@@ -54,10 +63,19 @@ def _post(d: dict) -> Post:
 
 
 class WordPressClient:
-    def __init__(self, site: str, category: str, cache_dir: str | Path | None = None,
-                 ttl: float = 600.0, timeout: float = 15.0, fetch=None):
+    """category: the slug of the one category to show; None for a site where the reader
+    first picks a category (categories()). The other options only describe how the
+    screens present the site: sort ("date" newest first, or "title" A-Z), whether the
+    publication dates mean anything, and the section titles."""
+
+    def __init__(self, site: str, category: str | None = None,
+                 cache_dir: str | Path | None = None, ttl: float = 600.0, timeout: float = 15.0,
+                 fetch=None, sort: str = "date", show_dates: bool = True,
+                 list_title: str = "STORIE", detail_title: str = "STORIA"):
         self.site = site.rstrip("/")
         self.category = category
+        self.sort, self.show_dates = sort, show_dates
+        self.list_title, self.detail_title = list_title, detail_title
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.ttl, self.timeout = ttl, timeout
         self._fetch = fetch or self._download
@@ -99,13 +117,27 @@ class WordPressClient:
         self._mem[url] = (now, data)
         return data
 
-    def _category_id(self) -> int | None:
-        found = self._json(f"/wp-json/wp/v2/categories?slug={self.category}&_fields=id")
+    def categories(self) -> list[Category]:
+        """The categories that have articles, A-Z."""
+        out, page = [], 1
+        while True:
+            batch = self._json(f"/wp-json/wp/v2/categories?per_page={PAGE_LIMIT}&page={page}"
+                               "&_fields=id,name,slug,count")
+            out.extend(Category(c["id"], html_to_text(c["name"]), c["slug"], c.get("count", 0))
+                       for c in batch if c.get("count", 0) > 0)
+            if len(batch) < PAGE_LIMIT:
+                return sorted(out, key=lambda c: fold(c.name))
+            page += 1
+
+    def _category_id(self, slug: str) -> int | None:
+        found = self._json(f"/wp-json/wp/v2/categories?slug={slug}&_fields=id")
         return found[0]["id"] if found else None
 
-    def posts(self) -> list[Post]:
-        """Titles and dates of every article in the category, newest first (no text)."""
-        cid = self._category_id()
+    def posts(self, slug: str | None = None) -> list[Post]:
+        """Titles and dates of the articles of a category (the client's own by default),
+        in the client's order, without their text."""
+        slug = slug or self.category
+        cid = self._category_id(slug) if slug else None
         if cid is None:
             return []
         out, page = [], 1
@@ -114,8 +146,11 @@ class WordPressClient:
                                f"&page={page}&orderby=date&order=desc&_fields=id,date,title,link")
             out.extend(_post(d) for d in batch)
             if len(batch) < PAGE_LIMIT:
-                return out
+                break
             page += 1
+        if self.sort == "title":
+            out.sort(key=lambda p: fold(p.title))
+        return out
 
     def article(self, post_id: int) -> Post | None:
         """One article with its text."""

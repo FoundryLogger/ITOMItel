@@ -37,6 +37,12 @@ def fake_fetch(calls=None):
     return fetch
 
 
+def epic(fetch, category="storie"):
+    """A client set up like Storie EPIC (one category, newest first, with dates)."""
+    return WordPressClient("https://example.org", category, fetch=fetch,
+                           list_title="STORIE EPIC", detail_title="STORIA")
+
+
 class FakeShop:
     def collections(self):
         return []
@@ -115,10 +121,10 @@ class ClientTests(unittest.TestCase):
         def down(url):
             raise OSError("rete assente")
         with self.assertRaises(OSError):
-            WordPressClient("https://example.org", "storie", fetch=down).posts()
+            epic(down).posts()
 
     def test_an_unknown_category_gives_an_empty_list(self):
-        c = WordPressClient("https://example.org", "boh", fetch=lambda url: [])
+        c = epic(lambda url: [], "boh")
         self.assertEqual(c.posts(), [])
 
     def test_domain_without_scheme_or_www(self):
@@ -127,7 +133,7 @@ class ClientTests(unittest.TestCase):
 
 class ScreenTests(unittest.TestCase):
     def open_stories(self, width=80, client=None):
-        app = App(FakeShop(), width=width, stories=client or WordPressClient("https://example.org", "storie", fetch=fake_fetch()),
+        app = App(FakeShop(), width=width, stories=client or epic(fake_fetch()),
                   loading_delay=5)
         app.key("8")
         return app
@@ -171,13 +177,13 @@ class ScreenTests(unittest.TestCase):
         self.assertIn("Articolo non disponibile", "\n".join(app.screen()))
 
     def test_an_empty_category(self):
-        app = self.open_stories(client=WordPressClient("https://example.org", "boh", fetch=lambda url: []))
-        self.assertIn("Nessuna storia trovata", "\n".join(app.screen()))
+        app = self.open_stories(client=epic(lambda url: [], "boh"))
+        self.assertIn("Nessun articolo trovato", "\n".join(app.screen()))
 
     def test_network_down_shows_the_error_screen(self):
         def down(url):
             raise OSError("rete assente")
-        app = self.open_stories(client=WordPressClient("https://example.org", "storie", fetch=down))
+        app = self.open_stories(client=epic(down))
         self.assertIn("Servizio non raggiungibile", "\n".join(app.screen()))
         app.key("INDICE")
         self.assertEqual(app.screen()[0], "ITOMItel".center(80))
@@ -202,6 +208,118 @@ class ScreenTests(unittest.TestCase):
         for width in (80, 40):
             home = "\n".join(App(FakeShop(), width=width).screen())
             self.assertIn("8  Storie EPIC", home)
+
+
+# ---- a site where the reader first picks a category (Nerdvana: one per city) ----
+
+CITIES = [{"id": 54, "name": "Londra", "slug": "londra", "count": 2},
+          {"id": 5, "name": "New York", "slug": "newyork", "count": 1},
+          {"id": 9, "name": "Vuota", "slug": "vuota", "count": 0},
+          {"id": 7, "name": "L&#8217;Aquila", "slug": "laquila", "count": 1}]
+GUIDES = {54: [rest_post(11, "Zeta Shop", "2026-07-14T10:00:00", "<p>Negozio di Londra.</p>"),
+               rest_post(12, "&Egrave;ra Comics", "2026-07-14T10:00:00", "<p>Fumetti &egrave; altro.</p>")],
+          5: [rest_post(21, "Alfa Store", "2026-07-14T10:00:00", "<p>Negozio di New York.</p>")],
+          7: [rest_post(31, "Beta", "2026-07-14T10:00:00", "<p>x</p>")]}
+
+
+def nerdvana_fetch(url):
+    if "/categories?" in url and "slug=" in url:
+        slug = url.split("slug=")[1].split("&")[0]
+        return [{"id": c["id"]} for c in CITIES if c["slug"] == slug]
+    if "/categories?" in url:
+        return CITIES
+    if "/posts/" in url:
+        pid = int(url.split("/posts/")[1].split("?")[0])
+        return next(p for posts in GUIDES.values() for p in posts if p["id"] == pid)
+    cid = int(url.split("categories=")[1].split("&")[0])
+    return [{k: p[k] for k in ("id", "date", "title", "link")} for p in GUIDES.get(cid, [])]
+
+
+def nerdvana():
+    return WordPressClient("https://example.net", None, fetch=nerdvana_fetch, sort="title",
+                           show_dates=False, list_title="NERDVANA", detail_title="GUIDA")
+
+
+class NerdvanaTests(unittest.TestCase):
+    def open_menu(self, width=80):
+        app = App(FakeShop(), width=width, nerdvana=nerdvana(), loading_delay=5)
+        app.key("9")
+        return app
+
+    def test_categories_skip_empty_ones_and_are_sorted_a_z_with_clean_names(self):
+        cats = nerdvana().categories()
+        self.assertEqual([c.name for c in cats], ["Londra", "L’Aquila", "New York"])
+        self.assertEqual([c.count for c in cats], [2, 1, 1])
+
+    def test_posts_are_sorted_by_title_ignoring_accents_and_case(self):
+        self.assertEqual([p.title for p in nerdvana().posts("londra")], ["Èra Comics", "Zeta Shop"])
+
+    def test_menu_entry_shows_the_cities_with_their_counts(self):
+        screen = self.open_menu().screen()
+        self.assertTrue(screen[0].startswith("NERDVANA"))
+        joined = "\n".join(screen)
+        self.assertIn("Londra", joined)
+        self.assertTrue(any(r.rstrip().endswith("(2)") for r in screen))
+        self.assertNotIn("Vuota", joined)
+        self.assertEqual({len(r) for r in screen}, {80})
+
+    def test_a_city_lists_its_guides_without_dates(self):
+        app = self.open_menu()
+        app.key("1")                                            # Londra
+        screen = app.screen()
+        self.assertTrue(screen[0].startswith("NERDVANA - LONDRA"))
+        rows = [r for r in screen if "Zeta Shop" in r or "Comics" in r]
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(r.rstrip().endswith(("Zeta Shop", "Comics")) for r in rows))   # nothing on the right
+        self.assertIn("fonte: example.net", "\n".join(screen))
+
+    def test_a_guide_has_no_date_line_and_cites_the_source(self):
+        app = self.open_menu()
+        app.key("1")
+        app.key("1")
+        screen = app.screen()
+        joined = "\n".join(screen)
+        self.assertTrue(screen[0].startswith("GUIDA"))
+        self.assertIn("ÈRA COMICS", joined)
+        self.assertIn("Fumetti è altro.", joined)
+        self.assertNotIn("luglio", joined)                       # the publication date means nothing here
+        self.assertIn("Fonte: example.net", joined)
+
+    def test_annul_walks_back_guide_city_list_menu(self):
+        app = self.open_menu()
+        app.key("1"); app.key("1")
+        app.key("ANNUL")
+        self.assertTrue(app.screen()[0].startswith("NERDVANA - LONDRA"))
+        app.key("ANNUL")
+        self.assertTrue(app.screen()[0].startswith("NERDVANA"))
+        self.assertNotIn("LONDRA", app.screen()[0])
+        app.key("ANNUL")
+        self.assertEqual(app.screen()[0], "ITOMItel".center(80))
+
+    def test_the_other_story_source_is_not_affected(self):
+        app = App(FakeShop(), nerdvana=nerdvana(),
+                  stories=epic(fake_fetch()), loading_delay=5)
+        app.key("8")
+        self.assertTrue(app.screen()[0].startswith("STORIE EPIC"))     # straight to the articles, with dates
+        self.assertTrue(any(r.rstrip().endswith("06/03/26") for r in app.screen()))
+
+    def test_layout_is_exact_in_ascii_mode_on_80_and_40_columns(self):
+        text.set_ascii_only(True)
+        self.addCleanup(text.set_ascii_only, False)
+        for width in (80, 40):
+            app = self.open_menu(width)
+            shots = [app.screen()]
+            app.key("1"); shots.append(app.screen())             # Londra
+            app.key("1"); shots.append(app.screen())             # its first guide
+            for screen in shots:
+                self.assertEqual(len(screen), HEIGHT)
+                for row in screen:
+                    self.assertEqual(len(row), width, row)
+                    self.assertTrue(row.isascii(), row)
+
+    def test_home_menu_on_both_widths(self):
+        self.assertIn("9  Nerdvana Guides", "\n".join(App(FakeShop()).screen()))
+        self.assertIn("9  Nerdvana", "\n".join(App(FakeShop(), width=40).screen()))
 
 
 if __name__ == "__main__":
