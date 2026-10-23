@@ -116,6 +116,14 @@ Il totem parte all'accensione e si riavvia da solo se si ferma. Log: `journalctl
 Dopo aver aggiornato il codice: `sudo systemctl restart itomitel`. Se il Minitel viene acceso dopo
 il Pi, il tasto Ripetiz. ridisegna tutta la schermata.
 
+## Aggiornare il Pi
+
+Dal Mac: `deploy/update-pi.sh` copia il codice sul Pi, fa girare lì i test e solo se passano riavvia
+il totem (ferma il processo e systemd lo rilancia, senza `sudo`). Serve un accesso SSH con chiave:
+una volta sola, `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_itomitel` e
+`ssh-copy-id -i ~/.ssh/id_ed25519_itomitel.pub itomitel@itomitel.local`, poi una voce `Host itomitel`
+in `~/.ssh/config`. Il Minitel va riportato in Ascii 80 col dopo il riavvio (Ripetiz. ridisegna).
+
 ## Struttura
 
 | File | Cosa fa |
