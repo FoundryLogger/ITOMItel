@@ -26,6 +26,8 @@ HEADER = "ITOMItel"
 INDICE, PRECEDENTE, SEGUENTE = "INDICE", "PRECEDENTE", "SEGUENTE"
 INVIO, ANNUL, CORREZIONE = "INVIO", "ANNUL", "CORREZIONE"
 GUIDA, RIPETIZ = "GUIDA", "RIPETIZ"
+DESTRA, SINISTRA = "DESTRA", "SINISTRA"     # the arrow keys: the same as Seguente and Precedente
+ARROWS = {DESTRA: SEGUENTE, SINISTRA: PRECEDENTE}
 
 STORE_NAME = "ITOMI"
 STORE_DOMAIN = "itomi.shop"
@@ -655,6 +657,7 @@ HELP = [
     "  Indice      torna al menu iniziale",
     "  Seguente    pagina successiva",
     "  Precedente  pagina precedente",
+    "  Frecce      destra = Seguente, sinistra = Precedente",
     "  Annul.      torna indietro",
     "  Correzione  cancella una lettera",
     "  Ripetiz.    aggiorna lo schermo e i prodotti",
@@ -779,6 +782,7 @@ class App:
         return box["value"]
 
     def key(self, k: str):
+        k = ARROWS.get(k, k)
         try:
             self._key(k)
         except Exception as e:  # network errors must not kill the totem

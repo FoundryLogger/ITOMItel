@@ -1,7 +1,7 @@
 """Offline tests for the serial backend: python3 -m unittest discover tests"""
 import unittest
 
-from totem.app import (ANNUL, CORREZIONE, INDICE, INVIO, SEGUENTE, App, render)
+from totem.app import (ANNUL, CORREZIONE, DESTRA, INDICE, INVIO, SEGUENTE, SINISTRA, App, render)
 from totem.terminal import (KeyDecoder, SerialTerminal, encode_screen,
                             estimate_seconds, to_ascii)
 
@@ -109,6 +109,62 @@ class DecoderTests(unittest.TestCase):
     def test_text_before_sequence(self):
         d = KeyDecoder({INDICE: [b"\x1b[H"]})
         self.assertEqual(d.feed(b"x\x1b[H"), ["x", INDICE])
+
+
+class ArrowKeyTests(unittest.TestCase):
+    def test_an_unknown_escape_sequence_is_dropped_whole_and_remembered(self):
+        d = KeyDecoder()
+        self.assertEqual(d.feed(b"a\x1b[Cb"), ["a", "b"])        # no stray "[" and "C" typed
+        self.assertEqual(d.take_unknown(), [b"\x1b[C"])
+        self.assertEqual(d.take_unknown(), [])                    # reported once
+
+    def test_other_escape_forms(self):
+        d = KeyDecoder()
+        self.assertEqual(d.feed(b"\x1bOA\x1b[1;5D\x1bxz"), ["z"])
+        self.assertEqual(d.take_unknown(), [b"\x1bOA", b"\x1b[1;5D", b"\x1bx"])
+
+    def test_a_sequence_split_in_two_reads_is_put_together(self):
+        d = KeyDecoder()
+        self.assertEqual(d.feed(b"\x1b"), [])
+        self.assertEqual(d.feed(b"[D"), [])
+        self.assertEqual(d.take_unknown(), [b"\x1b[D"])
+
+    def test_a_lone_escape_is_dropped_after_a_pause(self):
+        d = KeyDecoder()
+        self.assertEqual(d.feed(b"\x1b"), [])
+        self.assertEqual(d.flush(), [])
+        self.assertEqual(d.take_unknown(), [b"\x1b"])
+
+    def test_learned_arrows_become_their_own_keys(self):
+        d = KeyDecoder({DESTRA: [b"\x1b[C"], SINISTRA: [b"\x1b[D"]})
+        self.assertEqual(d.feed(b"\x1b[C\x1b[Dx"), [DESTRA, SINISTRA, "x"])
+        self.assertEqual(d.take_unknown(), [])
+
+    def test_arrows_do_what_seguente_and_precedente_do(self):
+        class Shop:
+            def collections(self): return []
+            def refresh(self): pass
+        app = App(Shop())
+        app.key("0")                                             # Credits: two pages
+        self.assertIn("1/2", app.screen()[0])
+        app.key(DESTRA)
+        self.assertIn("2/2", app.screen()[0])
+        app.key(SINISTRA)
+        self.assertIn("1/2", app.screen()[0])
+        app.key(SINISTRA)                                        # first page: like Precedente, back to the menu
+        self.assertEqual(app.screen()[0], "ITOMItel".center(80))
+
+    def test_arrows_are_harmless_where_seguente_is(self):
+        class Shop:
+            def collections(self): return []
+            def refresh(self): pass
+        app = App(Shop())
+        before = app.screen()
+        app.key(DESTRA)
+        self.assertEqual(app.screen(), before)                  # the menu has no pages
+        app.key("5")                                             # search: typing is untouched
+        app.key("a"); app.key(DESTRA); app.key("b")
+        self.assertIn("> ab_", "\n".join(app.screen()))
 
 
 class AppOverSerialTests(unittest.TestCase):

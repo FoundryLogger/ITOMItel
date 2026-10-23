@@ -42,6 +42,9 @@ def serial_main(cmd: str) -> None:
 
     ap = argparse.ArgumentParser(prog=f"totem {cmd}")
     serial_cli.add_port_args(ap)
+    if cmd == "learn":
+        ap.add_argument("names", nargs="*", metavar="TASTO",
+                        help="learn only these keys, e.g. DESTRA SINISTRA (default: all)")
     if cmd == "serial":
         ap.add_argument("--store", default="https://itomi.myshopify.com")
         ap.add_argument("--cache", default=str(Path(__file__).parent.parent / "cache"))

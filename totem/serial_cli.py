@@ -72,10 +72,14 @@ def cmd_learn(args) -> None:
     """Teach the totem which bytes each Minitel key sends."""
     port = _open(args)
     keymap = load_keymap(args.keymap)
+    names = args.names or KEY_NAMES
+    unknown = [n for n in names if n not in KEY_NAMES]
+    if unknown:
+        sys.exit(f"Tasti sconosciuti: {', '.join(unknown)}. Quelli validi: {', '.join(KEY_NAMES)}")
     print("Per ogni tasto: premilo sul Minitel. Se non invia nulla, premi Invio "
           "sul Mac per saltarlo; Ctrl+C per salvare e uscire.\n")
     try:
-        for name in KEY_NAMES:
+        for name in names:
             port.reset_input_buffer()
             print(f"Premi {name} ... ", end="", flush=True)
             seq = _capture(port)
@@ -131,6 +135,8 @@ def cmd_serial(args) -> None:
         while True:
             data = term.read()
             keys = decoder.feed(data) if data else decoder.flush()
+            for seq in decoder.take_unknown():
+                print(f"[sequenza non riconosciuta: {seq.hex(' ')}]", file=sys.stderr)
             now = time.monotonic()
             saver.configure(settings.saver_after, settings.ink, settings.hold)   # live changes
             if keys and saver.wake():

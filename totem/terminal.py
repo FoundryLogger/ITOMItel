@@ -18,8 +18,8 @@ import time
 from pathlib import Path
 
 from .text import ascii_spell
-from .app import (ANNUL, CORREZIONE, GUIDA, INDICE, INVIO, PRECEDENTE, RIPETIZ,
-                  SEGUENTE)
+from .app import (ANNUL, CORREZIONE, DESTRA, GUIDA, INDICE, INVIO, PRECEDENTE, RIPETIZ,
+                  SEGUENTE, SINISTRA)
 
 ROWS = 24
 
@@ -135,6 +135,26 @@ class KeyDecoder:
             table[name] = list(seqs)
         self.seqs: dict[bytes, str] = {s: name for name, ss in table.items() for s in ss}
         self.buf = b""
+        self.unknown: list[bytes] = []      # escape sequences nobody has taught us yet
+
+    def take_unknown(self) -> list[bytes]:
+        """The escape sequences seen and ignored since the last call (to log them)."""
+        seen, self.unknown = self.unknown, []
+        return seen
+
+    @staticmethod
+    def _escape_length(buf: bytes) -> int | None:
+        """Length of the escape sequence at the start of buf, or None if it's not complete."""
+        if len(buf) < 2:
+            return None
+        if buf[1] == 0x5B:                          # CSI: ESC [ parameters final-byte
+            for i in range(2, len(buf)):
+                if 0x40 <= buf[i] <= 0x7E:
+                    return i + 1
+            return None
+        if buf[1] == 0x4F:                          # SS3: ESC O x
+            return 3 if len(buf) >= 3 else None
+        return 2                                     # ESC and one more character
 
     def _is_prefix(self, b: bytes) -> bool:
         return any(s.startswith(b) and s != b for s in self.seqs)
@@ -158,6 +178,17 @@ class KeyDecoder:
                 out.append(self.seqs[match])
                 self.buf = self.buf[len(match):]
                 continue
+            if self.buf[0] == 0x1B:
+                # An escape sequence we don't know (an arrow key, say): drop the whole thing,
+                # so its "[" and "C" are not typed as letters, and remember it.
+                n = self._escape_length(self.buf)
+                if n is None:
+                    if not final:
+                        break                        # the rest may still arrive
+                    n = len(self.buf)                # a pause: it was cut short
+                self.unknown.append(self.buf[:n])
+                self.buf = self.buf[n:]
+                continue
             b = self.buf[0]
             self.buf = self.buf[1:]
             if 32 <= b < 127:
@@ -166,7 +197,8 @@ class KeyDecoder:
         return out
 
 
-KEY_NAMES = [INDICE, SEGUENTE, PRECEDENTE, ANNUL, CORREZIONE, GUIDA, RIPETIZ, INVIO]
+KEY_NAMES = [INDICE, SEGUENTE, PRECEDENTE, ANNUL, CORREZIONE, GUIDA, RIPETIZ, INVIO,
+             DESTRA, SINISTRA]
 
 
 def load_keymap(path: str | Path) -> dict[str, list[bytes]]:
