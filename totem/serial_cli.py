@@ -114,15 +114,6 @@ def cmd_probe(args) -> None:
           "e' quello da usare con --profile.")
 
 
-def cmd_baudtest(args) -> None:
-    """Try faster speeds on the real terminal (see totem/baudtest.py)."""
-    from . import baudtest
-    port = _open(args)
-    print(f"Prova velocita': {args.hold:.0f} s per passo. Guarda lo schermo e annota quali righe leggi.")
-    baudtest.run(port, args.hold, args.only)
-    print("Finito: porta e terminale di nuovo a 1200 baud.")
-
-
 def cmd_serial(args) -> None:
     set_ascii_only(True)   # accents and euro are spelled out before the layout is computed
     shop = Shop(args.store, cache_dir=args.cache)
