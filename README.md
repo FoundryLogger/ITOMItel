@@ -108,7 +108,12 @@ frecce sono le sequenze ANSI standard (destra `ESC [ C`, sinistra `ESC [ D`) e i
 di serie. Per scoprire un tasto nuovo senza fermare il servizio basta premerlo: la sequenza compare nel
 registro del Pi come `[sequenza non riconosciuta: …]` (`journalctl -u itomitel`).
 
-Il profilo **ansi** (ESC[2J, ESC[r;cH, ESC[K) è quello che il terminale capisce. A 1200 baud una
+Il profilo **ansi** (ESC[2J, ESC[r;cH, ESC[K) è quello che il terminale capisce.
+
+**La velocità è fissa a 1200 baud**: l'HCS 80/08 non ne accetta altre. Il 23 ottobre 2026 sono state
+provate sul terminale vero 2400, 4800 e 9600 baud mandando il testo direttamente, e 4800 e 9600 dopo il
+comando di cambio velocità dei Minitel (`ESC : k` seguito dal codice della velocità): si leggeva solo
+il riferimento a 1200. Per questo le Impostazioni non hanno una scelta della velocità. A 1200 baud una
 schermata piena impiega circa 7-9 secondi (volutamente lenta, come un Minitel vero): per questo la
 schermata di caricamento è minima e si ridisegnano solo le righe cambiate.
 
