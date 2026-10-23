@@ -43,6 +43,23 @@ class LogoTests(unittest.TestCase):
         self.assertLessEqual(12 + 5, BODY)       # two columns of five
 
 
+class MenuAlignmentTests(unittest.TestCase):
+    def test_both_menu_columns_line_up_in_ascii_mode_too(self):
+        # "Novità" becomes "Novita'" (one character longer) in plain ASCII; the second
+        # column must not move because of it.
+        from totem import text
+        text.set_ascii_only(True)
+        self.addCleanup(text.set_ascii_only, False)
+        for width, first_row in ((80, 15), (40, 14)):            # 80 has a blank row under the logo
+            rows = App(FakeShop(), width=width).screen()[first_row:first_row + 5]
+            left = {row.index(f"{n}  ") for row, n in zip(rows, "12345")}
+            right = {row.index(f"{n}  ") for row, n in zip(rows, "67890")}
+            self.assertEqual(len(left), 1, (width, left))
+            self.assertEqual(len(right), 1, (width, right))
+            self.assertTrue(all(len(r) == width and r.isascii() for r in rows))
+            self.assertIn("Novita'", rows[1])                    # and the accent really was spelled out
+
+
 class HeaderTests(unittest.TestCase):
     def test_every_view_keeps_the_centred_header(self):
         from totem.app import GUIDA, Message, Search

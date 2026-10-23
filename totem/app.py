@@ -177,7 +177,9 @@ class Home(View):
         wide = self.w >= 80
         menu = []
         for i, (label, kind, _) in enumerate(self.items, 1):
-            menu.append(f"{i % 10}  {label if wide else (SHORT_LABELS.get(kind) or label)}")
+            # sanitize first: "Novità" is one character longer once spelled in ASCII, and the
+            # columns are measured here, before render() sanitizes the screen
+            menu.append(sanitize(f"{i % 10}  {label if wide else (SHORT_LABELS.get(kind) or label)}"))
         half = (len(menu) + 1) // 2
         left, right = menu[:half], menu[half:]
         wl, gap = max(map(len, left)), 8 if wide else 3
