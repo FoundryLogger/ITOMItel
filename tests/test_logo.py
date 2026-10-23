@@ -125,6 +125,10 @@ class CreditsTests(unittest.TestCase):
                        "Raspberry Pi 3 Model B", "1200 baud, 7 bit, parità pari, 1 stop"):
             self.assertIn(phrase, text)
         self.assertEqual({len(r) for r in screen}, {80})
+        self.assertIn("tre fili dalla presa DIN", text)
+        self.assertIn("senza adattatori", text)
+        self.assertNotIn("USB", text)         # the USB-serial adapter was never used
+        self.assertIn("sequenze ANSI", text)
 
     def test_no_line_row_when_the_speed_is_not_known(self):
         app = App(FakeShop())          # console and web emulator have no serial line

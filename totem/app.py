@@ -202,10 +202,12 @@ class Credits(Paged):
                 ("Standard", "Videotex multistandard: CEPT P2, CEPT P3, ASCII 40 e 80 colonne"),
                 ("Schermo", f"monocromatico, in modalità ASCII a {self.w} colonne"),
                 ("Computer", "Raspberry Pi 3 Model B, collegato in Wi-Fi alla rete"),
-                ("Collegamento", "adattatore USB-seriale TTL con chip FTDI, sulla presa "
-                                 "DIN a 5 poli del terminale")]
+                ("Collegamento", "tre fili dalla presa DIN a 5 poli del terminale ai pin "
+                                 "della seriale del Raspberry Pi, a 3,3 V e senza adattatori")]
         if self.app.line_info:
             rows.append(("Linea seriale", self.app.line_info))
+        rows.append(("Disegno", "sequenze ANSI per posizionare il cursore: si "
+                                "ridisegnano solo le righe cambiate"))
         rows.append(("Software", "Python 3. Il catalogo di ITOMI.shop viene letto in tempo "
                                  "reale e tenuto in memoria per 5 minuti: se la rete cade, "
                                  "si usa l'ultima copia salvata"))
